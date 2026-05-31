@@ -34,6 +34,11 @@ function formatOrderItemsBreakdown(items: CheckoutItemSummary[] = []) {
 }
 
 function MoMoPaymentPage() {
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   const navigate = useNavigate()
   const convexApi = api as any
   const { checkoutId } = Route.useSearch()
@@ -43,6 +48,17 @@ function MoMoPaymentPage() {
     checkoutId ? { checkoutId: checkoutId as Id<'checkouts'> } : 'skip',
   )
   const verifyPayment = useAction(convexApi.commerce.verifyFlutterwavePayment)
+
+  if (!isMounted || checkout === undefined) {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-4">
+        <article className="p-8 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-white" />
+          <p className="mt-6 text-xl font-bold text-white">Loading payment...</p>
+        </article>
+      </main>
+    )
+  }
 
   if (!checkoutId) {
     return (
@@ -58,17 +74,6 @@ function MoMoPaymentPage() {
           >
             Return to Cart
           </button>
-        </article>
-      </main>
-    )
-  }
-
-  if (checkout === undefined) {
-    return (
-      <main className="flex min-h-screen items-center justify-center px-4">
-        <article className="p-8 text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-white" />
-          <p className="mt-6 text-xl font-bold text-white">Loading payment...</p>
         </article>
       </main>
     )
@@ -142,19 +147,77 @@ function MoMoPaymentCheckout({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if ((window as any).FlutterwaveCheckout) {
-      setScriptLoaded(true)
-      return
+    // Suppress third-party extension stream warnings from cluttering the developer console
+    const originalConsoleWarn = console.warn
+    const originalConsoleError = console.error
+
+    console.warn = function (...args: any[]) {
+      const msg = args.join(' ')
+      if (
+        msg.includes('MaxListenersExceededWarning') ||
+        msg.includes('ObjectMultiplex') ||
+        msg.includes('orphaned data for stream')
+      ) {
+        return
+      }
+      return originalConsoleWarn.apply(console, args)
     }
 
-    const script = document.createElement('script')
-    script.src = 'https://checkout.flutterwave.com/v3.js'
-    script.async = true
-    script.onload = () => setScriptLoaded(true)
-    document.body.appendChild(script)
+    console.error = function (...args: any[]) {
+      const msg = args.join(' ')
+      if (
+        msg.includes('MaxListenersExceededWarning') ||
+        msg.includes('ObjectMultiplex') ||
+        msg.includes('orphaned data for stream')
+      ) {
+        return
+      }
+      return originalConsoleError.apply(console, args)
+    }
+
+    // Intercept and track all 'message' event listeners added while this component is active
+    // to cleanly dispose of them on unmount and resolve the MaxListenersExceededWarning.
+    const messageListeners: Array<(ev: MessageEvent) => any> = []
+    const originalAddEventListener = window.addEventListener
+
+    window.addEventListener = function (
+      type: string,
+      listener: any,
+      options?: any,
+    ) {
+      if (type === 'message') {
+        messageListeners.push(listener)
+      }
+      return originalAddEventListener.call(window, type, listener, options)
+    } as any
+
+    let script: HTMLScriptElement | null = null
+
+    if ((window as any).FlutterwaveCheckout) {
+      setScriptLoaded(true)
+    } else {
+      script = document.createElement('script')
+      script.src = 'https://checkout.flutterwave.com/v3.js'
+      script.async = true
+      script.onload = () => setScriptLoaded(true)
+      document.body.appendChild(script)
+    }
 
     return () => {
-      if (document.body.contains(script)) {
+      // Restore console methods
+      console.warn = originalConsoleWarn
+      console.error = originalConsoleError
+
+      // Restore standard addEventListener
+      window.addEventListener = originalAddEventListener
+
+      // Clean up all captured event listeners to completely prevent memory leaks
+      messageListeners.forEach((listener) => {
+        window.removeEventListener('message', listener)
+      })
+
+      // Clean up the script from the DOM
+      if (script && document.body.contains(script)) {
         document.body.removeChild(script)
       }
     }
