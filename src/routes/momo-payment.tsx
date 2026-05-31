@@ -30,7 +30,7 @@ function formatOrderItemsBreakdown(items: CheckoutItemSummary[] = []) {
       const productName = item.productName.trim() || 'Merch'
       return `${item.quantity}x ${productName} - Color: ${item.color.trim()}, Size: ${item.size.trim()}`
     })
-    .join('\n')
+    .join(', ')
 }
 
 function MoMoPaymentPage() {
@@ -143,8 +143,10 @@ function MoMoPaymentCheckout({
   const [paymentStep, setPaymentStep] = useState<'review' | 'success'>('review')
   const [isPaying, setIsPaying] = useState(false)
   const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
+    setIsMounted(true)
     if (typeof window === 'undefined') return
 
     // Suppress third-party extension stream warnings from cluttering the developer console
@@ -273,6 +275,14 @@ function MoMoPaymentCheckout({
           setIsPaying(false)
         },
       })
+  }
+
+  if (!isMounted) {
+    return (
+      <div className="text-zinc-500 text-center py-10">
+        Syncing transaction data...
+      </div>
+    )
   }
 
   if (paymentStep === 'success') {
