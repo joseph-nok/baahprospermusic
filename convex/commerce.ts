@@ -427,10 +427,10 @@ export const completePaymentInternal = internalMutation({
       throw new Error('Checkout not found.')
     }
     if (checkout.status === 'paid') {
-      return { alreadyPaid: true }
+      return { alreadyPaid: true, totalAmount: checkout.totalAmount }
     }
     await ctx.db.patch(args.checkoutId, { status: 'paid' })
-    return { alreadyPaid: false }
+    return { alreadyPaid: false, totalAmount: checkout.totalAmount }
   },
 })
 
@@ -511,77 +511,60 @@ export const getOrderEmailData = internalQuery({
   },
 })
 
+// =====================================================================
+// PLACE THIS REFACTORED BLOCK AT THE ABSOLUTE BOTTOM OF CONVEX/COMMERCE.TS
+// =====================================================================
+
 export const verifyFlutterwavePayment = action({
   args: {
     transactionId: v.string(),
     checkoutId: v.id('checkouts'),
+    customerName: v.string(),
+    customerEmail: v.string(),
+    phoneNumber: v.string(),
+    deliveryInfo: v.string(),
+    orderItemsBreakdown: v.string(),
   },
   handler: async (ctx, args) => {
-    // 1. Mark database record status as 'paid' using your existing internal mutation
     const paymentResult: any = await ctx.runMutation(
       internal.commerce.completePaymentInternal,
-      {
-        checkoutId: args.checkoutId,
-      },
+      { checkoutId: args.checkoutId }
     )
 
-    // If this transaction was already handled and processed, stop to prevent duplicate emails
     if (paymentResult?.alreadyPaid) {
       return { success: true, alreadyPaid: true }
     }
 
     try {
-      // 2. Fetch the fully structured item summaries and delivery data using your query
-      const orderData = await ctx.runQuery(
-        internal.commerce.getOrderEmailData,
-        {
-          checkoutId: args.checkoutId,
-        },
-      )
-
-      // 3. Prevent duplicate notifications if database records state it was already dispatched
-      if (!orderData.orderNotificationEmailSentAt) {
-        // 4. Update payload with the live transaction ID reference from Flutterwave
-        const completedOrderPayload = {
-          ...orderData,
-          reference: args.transactionId,
-        }
-
-        // 5. Fire your native HTML email compiler straight to your inbox via Resend
-        const emailResult = await sendPaidOrderEmail(completedOrderPayload)
-
-        // 6. Log success state into your database table schema metrics
-        await ctx.runMutation(
-          internal.commerce.recordOrderNotificationEmailStatus,
-          {
-            checkoutId: args.checkoutId,
-            success: emailResult.success,
-            error: emailResult.error ?? undefined,
-          },
-        )
+      const completedOrderPayload: any = {
+        checkoutId: args.checkoutId,
+        amount: formatGhsAmount(paymentResult?.totalAmount || 0),
+        customerEmail: args.customerEmail,
+        customerName: args.customerName,
+        deliveryInfo: args.deliveryInfo,
+        orderItemsBreakdown: args.orderItemsBreakdown,
+        phoneNumber: args.phoneNumber,
+        reference: args.transactionId,
+        orderNotificationEmailSentAt: Date.now(),
       }
+
+      const emailResult = await sendPaidOrderEmail(completedOrderPayload)
+
+      await ctx.runMutation(internal.commerce.recordOrderNotificationEmailStatus, {
+        checkoutId: args.checkoutId,
+        success: emailResult.success,
+        error: emailResult.error ?? undefined,
+      })
 
       return { success: true, alreadyPaid: false }
     } catch (error: any) {
-      console.error(
-        'Background notification pipeline execution dropped:',
-        error,
-      )
-
-      // Log the specific failure string if things crash mid-flight
-      await ctx.runMutation(
-        internal.commerce.recordOrderNotificationEmailStatus,
-        {
-          checkoutId: args.checkoutId,
-          success: false,
-          error: error.message || String(error),
-        },
-      )
-
-      throw new Error(
-        `Payment verified but notification workflow failed: ${error.message}`,
-      )
+      console.error('Background pipeline error:', error)
+      await ctx.runMutation(internal.commerce.recordOrderNotificationEmailStatus, {
+        checkoutId: args.checkoutId,
+        success: false,
+        error: error.message || String(error),
+      })
+      throw new Error(`Payment verification notification crash: ${error.message}`)
     }
   },
 })
-

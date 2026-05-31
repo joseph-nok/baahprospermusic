@@ -137,6 +137,11 @@ function MoMoPaymentCheckout({
   verifyPayment: (args: {
     transactionId: string
     checkoutId: Id<'checkouts'>
+    customerName: string
+    customerEmail: string
+    phoneNumber: string
+    deliveryInfo: string
+    orderItemsBreakdown: string
   }) => Promise<unknown>
   navigate: ReturnType<typeof useNavigate>
 }) {
@@ -238,7 +243,7 @@ function MoMoPaymentCheckout({
     const phoneNumber = checkout.shippingAddress.phone || checkout.momoNumber
     const uniqueTxRef = `${checkout._id}_${Date.now()}`
 
-      ; (window as any).FlutterwaveCheckout({
+      ; ;(window as any).FlutterwaveCheckout({
         public_key: import.meta.env.VITE_FLW_PUBLIC_KEY || '',
         tx_ref: uniqueTxRef,
         amount: checkout.totalAmount || 0,
@@ -253,20 +258,37 @@ function MoMoPaymentCheckout({
           order_items: orderItemsBreakdown,
           checkoutId: checkout._id,
         },
+        // Look for this section inside your handleLivePaymentLaunch function:
         customizations: {
           title: 'Baah Prosper Music',
           description: 'Secure Payment for Digital Merch Order',
         },
+        // 🟢 REPLACE YOUR ENTIRE OLD CALLBACK PROPERTY WITH THIS ONE:
         callback: async (data: { transaction_id: string; tx_ref: string }) => {
           try {
+            const orderItemsBreakdown = formatOrderItemsBreakdown(
+              checkout.items,
+            )
+            const customerName =
+              `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
+            const deliveryAddress = `${checkout.shippingAddress.addressLine1}, ${checkout.shippingAddress.city}, ${checkout.shippingAddress.region}, ${checkout.shippingAddress.country}`
+
             await verifyPayment({
               transactionId: data.transaction_id.toString(),
               checkoutId: checkout._id,
+              customerName: customerName,
+              customerEmail: checkout.email || 'N/A',
+              phoneNumber:
+                checkout.shippingAddress.phone || checkout.momoNumber || 'N/A',
+              deliveryInfo: deliveryAddress,
+              orderItemsBreakdown: orderItemsBreakdown,
             })
             setPaymentStep('success')
           } catch (error) {
             console.error('Payment verification failed:', error)
-            alert('Payment verification failed. Please contact business support.')
+            alert(
+              'Payment verification failed. Please contact business support.',
+            )
           } finally {
             setIsPaying(false)
           }
