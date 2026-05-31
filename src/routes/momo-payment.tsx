@@ -288,6 +288,7 @@ function MoMoPaymentCheckout({
           <p className="mt-2 text-sm text-gray-400">
             Your transaction has processed successfully.
           </p>
+          <PaymentSummary checkout={checkout} className="mt-8 text-left" />
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
@@ -332,18 +333,7 @@ function MoMoPaymentCheckout({
             </p>
           </div>
 
-          <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
-            <div className="flex items-center justify-between text-gray-400">
-              <span>Amount to Pay:</span>
-              <span className="font-bold text-white">
-                {checkout.currency || 'GHS'} {checkout.totalAmount}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-gray-400">
-              <span>Account Email:</span>
-              <span className="text-white">{checkout.email}</span>
-            </div>
-          </div>
+          <PaymentSummary checkout={checkout} />
 
           <div className="space-y-3 pt-4">
             <button
@@ -370,5 +360,107 @@ function MoMoPaymentCheckout({
         </article>
       </section>
     </main>
+  )
+}
+
+function PaymentSummary({
+  checkout,
+  className = '',
+}: {
+  checkout: MoMoCheckout
+  className?: string
+}) {
+  const customerName = `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      {/* Amount Due Box */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          Amount Due
+        </p>
+        <p className="mt-1 font-display text-3xl font-bold text-emerald-400">
+          {checkout.currency || 'GHS'} {checkout.totalAmount.toFixed(2)}
+        </p>
+      </div>
+
+      {/* Order Items Breakdown */}
+      {checkout.items && checkout.items.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+            Order Items
+          </p>
+          <div className="space-y-2 text-sm text-zinc-300">
+            {checkout.items.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex justify-between border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0"
+              >
+                <div>
+                  <span className="font-semibold text-white">
+                    {item.quantity}x
+                  </span>{' '}
+                  {item.productName}
+                  <span className="block text-xs text-zinc-500">
+                    Color: {item.color} | Size: {item.size}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Payment details */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          Payment Details
+        </p>
+        <div className="space-y-2 text-sm text-zinc-300">
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Reference:</span>
+            <span className="font-medium text-white">
+              {checkout.paymentReference}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Mobile Money:</span>
+            <span className="font-medium text-white">
+              {checkout.momoNumber}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Method:</span>
+            <span className="font-medium text-white">
+              {checkout.paymentMethod}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Email:</span>
+            <span className="font-medium text-white">{checkout.email}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Delivery details */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          Shipping Address
+        </p>
+        <div className="space-y-1 text-sm text-zinc-300">
+          <p className="font-semibold text-white">{customerName}</p>
+          <p>{checkout.shippingAddress.addressLine1}</p>
+          <p>
+            {checkout.shippingAddress.city}, {checkout.shippingAddress.region}
+          </p>
+          <p>{checkout.shippingAddress.country}</p>
+          {checkout.shippingAddress.phone && (
+            <p className="pt-1 text-xs text-zinc-500">
+              Phone: {checkout.shippingAddress.phone}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
