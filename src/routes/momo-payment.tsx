@@ -1,9 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery, useAction } from 'convex/react'
-import { useState, useEffect } from 'react'
+import { useAction, useQuery } from 'convex/react'
+import { useEffect, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import FlutterwaveCheckout from '../components/FlutterwaveCheckout'
 
 type MomoPaymentSearch = {
   checkoutId: string
@@ -26,7 +25,6 @@ type CheckoutItemSummary = {
 
 function formatOrderItemsBreakdown(items: CheckoutItemSummary[] = []) {
   if (!items.length) return 'N/A'
-
   return items
     .map((item) => {
       const productName = item.productName.trim() || 'Merch'
@@ -49,20 +47,18 @@ function MoMoPaymentPage() {
   if (!checkoutId) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4">
-        <section className="page-wrap max-w-md">
-          <article className="editorial-card p-8 text-center">
-            <p className="text-lg font-semibold text-red-400">
-              Missing checkout session. Please start again from your cart.
-            </p>
-            <button
-              type="button"
-              onClick={() => void navigate({ to: '/cart' })}
-              className="cta-primary mt-6 justify-center py-4"
-            >
-              Return to Cart
-            </button>
-          </article>
-        </section>
+        <article className="rounded-xl border border-red-900/50 bg-[#111] p-8 text-center">
+          <p className="text-lg font-semibold text-red-400">
+            Missing checkout session. Please start again from your cart.
+          </p>
+          <button
+            type="button"
+            onClick={() => void navigate({ to: '/cart' })}
+            className="mt-6 rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition hover:bg-red-700"
+          >
+            Return to Cart
+          </button>
+        </article>
       </main>
     )
   }
@@ -70,17 +66,10 @@ function MoMoPaymentPage() {
   if (checkout === undefined) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4">
-        <section className="page-wrap max-w-md">
-          <article className="editorial-card p-8 text-center">
-            <LoadingSpinner />
-            <p className="mt-6 text-2xl font-bold text-white">
-              Loading payment
-            </p>
-            <p className="mt-2 text-sm text-(--color-copy-soft)">
-              Retrieving your checkout details…
-            </p>
-          </article>
-        </section>
+        <article className="p-8 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-white" />
+          <p className="mt-6 text-xl font-bold text-white">Loading payment...</p>
+        </article>
       </main>
     )
   }
@@ -88,20 +77,18 @@ function MoMoPaymentPage() {
   if (checkout === null) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4">
-        <section className="page-wrap max-w-md">
-          <article className="editorial-card p-8 text-center">
-            <p className="text-lg font-semibold text-red-400">
-              Checkout not found. It may have expired.
-            </p>
-            <button
-              type="button"
-              onClick={() => void navigate({ to: '/cart' })}
-              className="cta-primary mt-6 justify-center py-4"
-            >
-              Return to Cart
-            </button>
-          </article>
-        </section>
+        <article className="rounded-xl border border-red-900/50 bg-[#111] p-8 text-center">
+          <p className="text-lg font-semibold text-red-400">
+            Checkout not found. It may have expired.
+          </p>
+          <button
+            type="button"
+            onClick={() => void navigate({ to: '/cart' })}
+            className="mt-6 rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition hover:bg-red-700"
+          >
+            Return to Cart
+          </button>
+        </article>
       </main>
     )
   }
@@ -150,260 +137,175 @@ function MoMoPaymentCheckout({
 }) {
   const [paymentStep, setPaymentStep] = useState<'review' | 'success'>('review')
   const [isPaying, setIsPaying] = useState(false)
-
-  const customerName =
-    `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
-  const orderItemsBreakdown = formatOrderItemsBreakdown(checkout.items)
-  const phoneNumber = checkout.shippingAddress.phone || checkout.momoNumber
-
-  const [flutterwaveConfig, setFlutterwaveConfig] = useState<{
-    reference: string
-    email: string
-    amount: number
-    publicKey: string
-    currency: string
-    customerName: string
-    phoneNumber: string
-    orderItemsBreakdown: string
-    checkoutId: string
-  } | null>(null)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
 
   useEffect(() => {
-    setFlutterwaveConfig({
-      reference: `${checkout._id}_${Date.now()}`,
-      email: checkout.email || '',
-      amount: checkout.totalAmount || 0,
-      publicKey: import.meta.env.VITE_FLW_PUBLIC_KEY || '',
-      currency: checkout.currency || 'GHS',
-      customerName,
-      phoneNumber,
-      orderItemsBreakdown,
-      checkoutId: checkout._id,
-    })
-  }, [
-    checkout._id,
-    checkout.email,
-    checkout.totalAmount,
-    checkout.currency,
-    customerName,
-    phoneNumber,
-    orderItemsBreakdown,
-  ])
+    if (typeof window === 'undefined') return
 
-  const onSuccess = async (response: {
-    transaction_id: string
-    tx_ref: string
-  }) => {
+    if ((window as any).FlutterwaveCheckout) {
+      setScriptLoaded(true)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://checkout.flutterwave.com/v3.js'
+    script.async = true
+    script.onload = () => setScriptLoaded(true)
+    document.body.appendChild(script)
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
+    }
+  }, [])
+
+  const handleLivePaymentLaunch = () => {
+    if (!scriptLoaded || !(window as any).FlutterwaveCheckout) {
+      alert('Payment gateway is loading. Please wait a moment and try again.')
+      return
+    }
+
     setIsPaying(true)
 
-    try {
-      await verifyPayment({
-        transactionId: response.transaction_id,
-        checkoutId: checkout._id,
-      })
-      setPaymentStep('success')
-    } catch (error) {
-      console.error('Payment verification failed:', error)
-      alert('Payment verification failed. Please contact support.')
-    } finally {
-      setIsPaying(false)
-    }
-  }
+    const customerName = `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
+    const orderItemsBreakdown = formatOrderItemsBreakdown(checkout.items)
+    const phoneNumber = checkout.shippingAddress.phone || checkout.momoNumber
+    const uniqueTxRef = `${checkout._id}_${Date.now()}`
 
-  const onClose = () => {
-    setIsPaying(false)
+      ; (window as any).FlutterwaveCheckout({
+        public_key: import.meta.env.VITE_FLW_PUBLIC_KEY || '',
+        tx_ref: uniqueTxRef,
+        amount: checkout.totalAmount || 0,
+        currency: checkout.currency || 'GHS',
+        payment_options: 'mobilemoneygh, card',
+        customer: {
+          email: checkout.email || '',
+          phone_number: phoneNumber,
+          name: customerName,
+        },
+        meta: {
+          order_items: orderItemsBreakdown,
+          checkoutId: checkout._id,
+        },
+        customizations: {
+          title: 'Baah Prosper Music',
+          description: 'Secure Payment for Digital Merch Order',
+        },
+        callback: async (data: { transaction_id: string; tx_ref: string }) => {
+          try {
+            await verifyPayment({
+              transactionId: data.transaction_id.toString(),
+              checkoutId: checkout._id,
+            })
+            setPaymentStep('success')
+          } catch (error) {
+            console.error('Payment verification failed:', error)
+            alert('Payment verification failed. Please contact business support.')
+          } finally {
+            setIsPaying(false)
+          }
+        },
+        onclose: () => {
+          setIsPaying(false)
+        },
+      })
   }
 
   if (paymentStep === 'success') {
     return (
-      <main className="flex min-h-screen items-center justify-center px-4 pb-20 pt-14">
-        <section className="page-wrap max-w-lg">
-          <article className="editorial-card p-8">
-            <SuccessIcon />
-            <p className="eyebrow mb-2 text-center">Payment successful</p>
-            <h1 className="text-center font-display text-3xl font-bold text-white">
-              Payment complete
-            </h1>
-            <p className="mt-3 text-center text-sm text-(--color-copy-soft)">
-              Your payment was successfully processed.
-            </p>
-
-            <PaymentSummary checkout={checkout} className="mt-8" />
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => void navigate({ to: '/' })}
-                className="cta-primary justify-center py-4"
-              >
-                Return Home
-              </button>
-              <button
-                type="button"
-                onClick={() => void navigate({ to: '/market' })}
-                className="cta-secondary justify-center py-4"
-              >
-                Continue Shopping
-              </button>
-            </div>
-          </article>
+      <main className="flex min-h-screen items-center justify-center bg-black px-4 pb-20 pt-14 text-white">
+        <section className="w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111] p-8 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+            Success
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-bold">
+            Payment complete
+          </h1>
+          <p className="mt-2 text-sm text-gray-400">
+            Your transaction has processed successfully.
+          </p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => void navigate({ to: '/' })}
+              className="rounded-xl bg-white py-4 font-semibold text-black transition hover:bg-gray-200"
+            >
+              Return Home
+            </button>
+            <button
+              type="button"
+              onClick={() => void navigate({ to: '/market' })}
+              className="rounded-xl bg-zinc-800 py-4 font-semibold text-white transition hover:bg-zinc-700"
+            >
+              Continue Shopping
+            </button>
+          </div>
         </section>
       </main>
     )
   }
 
   return (
-    <main className="px-4 pb-20 pt-14">
-      <section className="page-wrap max-w-lg">
-        <p className="eyebrow mb-3">Mobile Money</p>
-        <h1 className="font-display text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl">
+    <main className="flex min-h-screen items-center justify-center bg-black px-4 pb-20 pt-14 text-white">
+      <section className="w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111] p-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+          Mobile Money Gateway
+        </p>
+        <h1 className="mt-1 text-4xl font-bold tracking-tight">
           Complete payment
         </h1>
-        <p className="mt-3 text-sm text-(--color-copy-soft)">
-          Complete your purchase securely via Flutterwave.
+        <p className="mt-2 text-sm text-gray-400">
+          Review details and secure your purchase through Flutterwave.
         </p>
 
-        <article className="editorial-card mt-8 p-8">
-          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-            <span className="font-semibold uppercase tracking-wider">
-              Secure Payment
+        <article className="mt-8 space-y-6">
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-200">
+            <span className="block text-xs font-semibold uppercase tracking-wider">
+              Secure Payment Shield Enabled
             </span>
-            <p className="mt-1 text-emerald-100/90">
-              You will complete your payment securely inline via Mobile Money or
-              Card.
+            <p className="mt-1 text-xs text-emerald-100/70">
+              Your payment information remains completely encrypted and is verified instantly.
             </p>
           </div>
 
-          <PaymentSummary checkout={checkout} />
+          <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+            <div className="flex items-center justify-between text-gray-400">
+              <span>Amount to Pay:</span>
+              <span className="font-bold text-white">
+                {checkout.currency || 'GHS'} {checkout.totalAmount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-gray-400">
+              <span>Account Email:</span>
+              <span className="text-white">{checkout.email}</span>
+            </div>
+          </div>
 
-          <div className="mt-8 space-y-3">
-            <FlutterwaveCheckout
-              config={flutterwaveConfig}
-              onSuccess={onSuccess}
-              onClose={onClose}
-              isPaying={isPaying}
-              isPaid={checkout.status === 'paid'}
-              onInitiate={() => {
-                setIsPaying(true)
-              }}
-            />
+          <div className="space-y-3 pt-4">
+            <button
+              type="button"
+              disabled={isPaying || !scriptLoaded}
+              onClick={handleLivePaymentLaunch}
+              className="w-full rounded-xl bg-emerald-600 py-4 font-semibold text-white transition duration-200 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600"
+            >
+              {isPaying
+                ? 'PROCESSING TRANSACTION...'
+                : scriptLoaded
+                  ? 'PAY SECURELY NOW'
+                  : 'LOADING GATEWAY...'}
+            </button>
+
             <button
               type="button"
               onClick={() => void navigate({ to: '/cart' })}
-              className="cta-secondary w-full justify-center py-4"
+              className="block w-full rounded-xl border border-zinc-800 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 transition duration-200 hover:text-zinc-300"
             >
-              Back to cart
+              Back to Cart
             </button>
           </div>
         </article>
       </section>
     </main>
-  )
-}
-
-function PaymentSummary({
-  checkout,
-  className = '',
-}: {
-  checkout: {
-    totalAmount: number
-    paymentReference: string
-    momoNumber: string
-    paymentMethod: string
-    email: string
-    shippingAddress: {
-      firstName: string
-      lastName: string
-      addressLine1: string
-      city: string
-      region: string
-      country: string
-    }
-  }
-  className?: string
-}) {
-  return (
-    <div className={`space-y-4 ${className}`}>
-      <div className="rounded-lg border border-white/10 bg-black/30 p-4">
-        <p className="mb-3 text-xs uppercase tracking-[0.16em] text-(--color-copy-soft)">
-          Amount due
-        </p>
-        <p className="font-display text-3xl font-bold text-(--color-primary)">
-          GHS {checkout.totalAmount.toFixed(2)}
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-white/10 bg-black/30 p-4">
-        <p className="mb-3 text-xs uppercase tracking-[0.16em] text-(--color-copy-soft)">
-          Payment details
-        </p>
-        <div className="space-y-2 text-sm text-white">
-          <p>
-            <span className="text-(--color-copy-soft)">Reference:</span>{' '}
-            {checkout.paymentReference}
-          </p>
-          <p>
-            <span className="text-(--color-copy-soft)">MoMo number:</span> +233{' '}
-            {checkout.momoNumber}
-          </p>
-          <p>
-            <span className="text-(--color-copy-soft)">Method:</span>{' '}
-            {checkout.paymentMethod}
-          </p>
-          <p>
-            <span className="text-(--color-copy-soft)">Email:</span>{' '}
-            {checkout.email}
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-white/10 bg-black/30 p-4">
-        <p className="mb-3 text-xs uppercase tracking-[0.16em] text-(--color-copy-soft)">
-          Ship to
-        </p>
-        <div className="space-y-1 text-sm text-white">
-          <p>
-            {checkout.shippingAddress.firstName}{' '}
-            {checkout.shippingAddress.lastName}
-          </p>
-          <p>{checkout.shippingAddress.addressLine1}</p>
-          <p>
-            {checkout.shippingAddress.city}, {checkout.shippingAddress.region}
-          </p>
-          <p>{checkout.shippingAddress.country}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function LoadingSpinner() {
-  return (
-    <div className="flex justify-center">
-      <div className="h-16 w-16 animate-spin rounded-full border-4 border-white/20 border-t-(--color-primary)" />
-    </div>
-  )
-}
-
-function SuccessIcon() {
-  return (
-    <div className="mb-6 flex justify-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20">
-        <svg
-          className="h-10 w-10 text-emerald-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-      </div>
-    </div>
   )
 }
