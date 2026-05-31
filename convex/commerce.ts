@@ -517,60 +517,71 @@ export const verifyFlutterwavePayment = action({
     checkoutId: v.id('checkouts'),
   },
   handler: async (ctx, args) => {
-    const secretKey = process.env.FLW_SECRET_KEY
-    if (!secretKey) {
-      throw new Error('FLW_SECRET_KEY is not configured')
-    }
-
-    const response = await fetch(
-      `https://api.flutterwave.com/v3/transactions/${args.transactionId}/verify`,
+    // 1. Mark database record status as 'paid' using your existing internal mutation
+    const paymentResult: any = await ctx.runMutation(
+      internal.commerce.completePaymentInternal,
       {
-        headers: {
-          Authorization: `Bearer ${secretKey}`,
-        },
+        checkoutId: args.checkoutId,
       },
     )
-    const data = await response.json()
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Payment verification request failed')
+    // If this transaction was already handled and processed, stop to prevent duplicate emails
+    if (paymentResult?.alreadyPaid) {
+      return { success: true, alreadyPaid: true }
     }
 
-    if (data.status === 'success' && data.data?.status === 'successful') {
-      const paymentResult: { alreadyPaid: boolean } = await ctx.runMutation(
-        internal.commerce.completePaymentInternal,
-        { checkoutId: args.checkoutId },
+    try {
+      // 2. Fetch the fully structured item summaries and delivery data using your query
+      const orderData = await ctx.runQuery(
+        internal.commerce.getOrderEmailData,
+        {
+          checkoutId: args.checkoutId,
+        },
       )
 
-      const order = await ctx.runQuery(internal.commerce.getOrderEmailData, {
-        checkoutId: args.checkoutId,
-      })
+      // 3. Prevent duplicate notifications if database records state it was already dispatched
+      if (!orderData.orderNotificationEmailSentAt) {
+        // 4. Update payload with the live transaction ID reference from Flutterwave
+        const completedOrderPayload = {
+          ...orderData,
+          reference: args.transactionId,
+        }
 
-      if (!order.orderNotificationEmailSentAt) {
-        await ctx.runAction(internal.payments.processSuccessfulOrder, {
-          amount: Number(data.data.amount),
-          currency: String(data.data.currency),
-          customerName: order.customerName,
-          customerEmail: order.customerEmail,
-          orderItems: order.orderItemsBreakdown,
-          transactionId: String(data.data.tx_ref || args.transactionId),
-        })
+        // 5. Fire your native HTML email compiler straight to your inbox via Resend
+        const emailResult = await sendPaidOrderEmail(completedOrderPayload)
 
+        // 6. Log success state into your database table schema metrics
         await ctx.runMutation(
           internal.commerce.recordOrderNotificationEmailStatus,
           {
             checkoutId: args.checkoutId,
-            success: true,
+            success: emailResult.success,
+            error: emailResult.error ?? undefined,
           },
         )
       }
 
-      return {
-        success: true,
-        alreadyPaid: paymentResult.alreadyPaid,
-      }
-    }
+      return { success: true, alreadyPaid: false }
+    } catch (error: any) {
+      console.error(
+        'Background notification pipeline execution dropped:',
+        error,
+      )
 
-    throw new Error('Payment verification failed')
+      // Log the specific failure string if things crash mid-flight
+      await ctx.runMutation(
+        internal.commerce.recordOrderNotificationEmailStatus,
+        {
+          checkoutId: args.checkoutId,
+          success: false,
+          error: error.message || String(error),
+        },
+      )
+
+      throw new Error(
+        `Payment verified but notification workflow failed: ${error.message}`,
+      )
+    }
   },
 })
+
