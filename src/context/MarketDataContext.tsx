@@ -54,8 +54,11 @@ const MarketDataContext = createContext<MarketDataContextValue | null>(null)
  * Place this as high as possible in the component tree (inside ConvexProvider
  * but wrapping all routes) so the subscriptions never unmount on navigation.
  */
-export function MarketDataProvider({ children }: { children: React.ReactNode }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function MarketDataProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const convexApi = api as any
 
   // ── Heavy data queries (single Convex WebSocket subscription each) ──
@@ -63,9 +66,7 @@ export function MarketDataProvider({ children }: { children: React.ReactNode }) 
     | Product[]
     | undefined
 
-  const allColorImages = useQuery(api.merch.getAllColorImages) as
-    | Record<string, Record<string, string>>
-    | undefined
+  const allColorImages = useQuery(api.merch.getAllColorImages)
 
   // ── Feature-flag settings ────────────────────────────────────────────
   const merchLineEnabled = useQuery(api.settings.getSetting, {

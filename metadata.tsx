@@ -1,6 +1,10 @@
 import { createServerFn, useServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
-import { paystackErr, paystackInfo, maskPaystackUrl } from './src/lib/paystack-log'
+import {
+  paystackErr,
+  paystackInfo,
+  maskPaystackUrl,
+} from './src/lib/paystack-log'
 
 declare const process: {
   env: {
@@ -173,7 +177,11 @@ export const initializePayment = createServerFn({ method: 'POST' })
     const result = (await response.json()) as PaystackInitializeResponse
 
     if (!response.ok || !result.status || !result.data?.authorization_url) {
-      paystackErr('INIT', undefined, result.message || 'transaction setup failed')
+      paystackErr(
+        'INIT',
+        undefined,
+        result.message || 'transaction setup failed',
+      )
       throw new Error(result.message || 'Paystack transaction setup failed.')
     }
 

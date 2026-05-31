@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { Instagram } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
+
 export const Route = createFileRoute('/about')({
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(
@@ -35,7 +36,10 @@ function AboutPage() {
             <div className="h-10 w-1/2 bg-white/10 rounded-xl mb-10" />
             <div className="grid gap-8 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="editorial-card overflow-hidden rounded-2xl border border-white/5 bg-white/2">
+                <div
+                  key={i}
+                  className="editorial-card overflow-hidden rounded-2xl border border-white/5 bg-white/2"
+                >
                   <div className="h-80 w-full bg-white/10" />
                   <div className="p-7 space-y-4">
                     <div className="h-3 w-1/4 bg-white/10 rounded-full" />

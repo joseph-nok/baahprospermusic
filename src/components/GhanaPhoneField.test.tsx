@@ -14,6 +14,9 @@ describe('GhanaPhoneField', () => {
     )
     expect(screen.getByText('MoMo Number')).toBeInTheDocument()
     expect(screen.getByText('233')).toBeInTheDocument()
-    expect(screen.getByTestId('momo-phone')).toHaveAttribute('name', 'momoNumber')
+    expect(screen.getByTestId('momo-phone')).toHaveAttribute(
+      'name',
+      'momoNumber',
+    )
   })
 })

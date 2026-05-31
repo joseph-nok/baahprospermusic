@@ -53,7 +53,9 @@ describe('Convex backend integration', () => {
     })
     expect(eventId).toBeDefined()
 
-    const published = await t.query(api.events.listEvents, { publishedOnly: true })
+    const published = await t.query(api.events.listEvents, {
+      publishedOnly: true,
+    })
     expect(published.some((e) => e.title === 'City Worship')).toBe(true)
 
     await t.mutation(api.events.updateUpcomingEvent, {
@@ -89,7 +91,9 @@ describe('Convex backend integration', () => {
       image: 'https://example.com/member.jpg',
       bio: 'Bio text',
     })
-    const member = await t.query(api.content.getMemberByName, { name: 'Baah Prosper' })
+    const member = await t.query(api.content.getMemberByName, {
+      name: 'Baah Prosper',
+    })
     expect(member?.role).toBe('Lead')
   })
 

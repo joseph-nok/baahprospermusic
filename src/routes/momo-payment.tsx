@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useAction } from 'convex/react'
-import React, { Suspense, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import { paystackErr, paystackInfo } from '../lib/paystack-log'
+import FlutterwaveCheckout from '../components/FlutterwaveCheckout'
 
 type MomoPaymentSearch = {
   checkoutId: string
@@ -16,8 +16,6 @@ export const Route = createFileRoute('/momo-payment')({
   }),
   component: MoMoPaymentPage,
 })
-
-const PaystackCheckout = React.lazy(() => import('../components/PaystackCheckout'))
 
 type CheckoutItemSummary = {
   productName: string
@@ -44,11 +42,9 @@ function MoMoPaymentPage() {
 
   const checkout = useQuery(
     convexApi.commerce.getCheckout,
-    checkoutId
-      ? { checkoutId: checkoutId as Id<'checkouts'> }
-      : 'skip',
+    checkoutId ? { checkoutId: checkoutId as Id<'checkouts'> } : 'skip',
   )
-  const verifyPayment = useAction(convexApi.commerce.verifyPaystackPayment)
+  const verifyPayment = useAction(convexApi.commerce.verifyFlutterwavePayment)
 
   if (!checkoutId) {
     return (
@@ -77,7 +73,9 @@ function MoMoPaymentPage() {
         <section className="page-wrap max-w-md">
           <article className="editorial-card p-8 text-center">
             <LoadingSpinner />
-            <p className="mt-6 text-2xl font-bold text-white">Loading payment</p>
+            <p className="mt-6 text-2xl font-bold text-white">
+              Loading payment
+            </p>
             <p className="mt-2 text-sm text-(--color-copy-soft)">
               Retrieving your checkout details…
             </p>
@@ -145,7 +143,7 @@ function MoMoPaymentCheckout({
 }: {
   checkout: MoMoCheckout
   verifyPayment: (args: {
-    reference: string
+    transactionId: string
     checkoutId: Id<'checkouts'>
   }) => Promise<unknown>
   navigate: ReturnType<typeof useNavigate>
@@ -155,14 +153,6 @@ function MoMoPaymentCheckout({
 
   const customerName =
     `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
-  const deliveryInfo = [
-    customerName,
-    checkout.shippingAddress.addressLine1,
-    `${checkout.shippingAddress.city}, ${checkout.shippingAddress.region}`,
-    checkout.shippingAddress.country,
-  ]
-    .filter(Boolean)
-    .join('\n')
   const orderItemsBreakdown = formatOrderItemsBreakdown(checkout.items)
   const phoneNumber = checkout.shippingAddress.phone || checkout.momoNumber
 
@@ -171,42 +161,17 @@ function MoMoPaymentCheckout({
     [checkout._id],
   )
 
-  const paystackConfig = useMemo(
+  const flutterwaveConfig = useMemo(
     () => ({
       reference: paymentReference,
       email: checkout.email || '',
-      amount: Math.round((checkout.totalAmount || 0) * 100),
-      publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+      amount: checkout.totalAmount || 0,
+      publicKey: import.meta.env.VITE_FLW_PUBLIC_KEY || '',
       currency: checkout.currency || 'GHS',
-      metadata: {
-        checkout_id: checkout._id,
-        customer_name: customerName,
-        phone_number: phoneNumber,
-        delivery_info: deliveryInfo,
-        order_items_breakdown: orderItemsBreakdown,
-        custom_fields: [
-          {
-            display_name: 'Customer Name',
-            variable_name: 'customer_name',
-            value: customerName,
-          },
-          {
-            display_name: 'Phone Number',
-            variable_name: 'phone_number',
-            value: phoneNumber,
-          },
-          {
-            display_name: 'Delivery Info',
-            variable_name: 'delivery_info',
-            value: deliveryInfo,
-          },
-          {
-            display_name: 'Order Items Breakdown',
-            variable_name: 'order_items_breakdown',
-            value: orderItemsBreakdown,
-          },
-        ],
-      },
+      customerName,
+      phoneNumber,
+      orderItemsBreakdown,
+      checkoutId: checkout._id,
     }),
     [
       checkout._id,
@@ -214,28 +179,26 @@ function MoMoPaymentCheckout({
       checkout.email,
       checkout.totalAmount,
       customerName,
-      deliveryInfo,
       orderItemsBreakdown,
       paymentReference,
       phoneNumber,
     ],
   )
 
-  const onSuccess = async (response: { reference?: string }) => {
-    const reference = response.reference ?? 'unknown'
-
-    paystackInfo('MOMO', reference, 'paystack success callback')
-
+  const onSuccess = async (response: {
+    transaction_id: string
+    tx_ref: string
+  }) => {
     setIsPaying(true)
 
     try {
       await verifyPayment({
-        reference,
+        transactionId: response.transaction_id,
         checkoutId: checkout._id,
       })
       setPaymentStep('success')
     } catch (error) {
-      paystackErr('MOMO', reference, 'payment verification failed', error)
+      console.error('Payment verification failed:', error)
       alert('Payment verification failed. Please contact support.')
     } finally {
       setIsPaying(false)
@@ -252,12 +215,12 @@ function MoMoPaymentCheckout({
         <section className="page-wrap max-w-lg">
           <article className="editorial-card p-8">
             <SuccessIcon />
-            <p className="eyebrow mb-2 text-center">Test payment</p>
+            <p className="eyebrow mb-2 text-center">Payment successful</p>
             <h1 className="text-center font-display text-3xl font-bold text-white">
               Payment complete
             </h1>
             <p className="mt-3 text-center text-sm text-(--color-copy-soft)">
-              Your Paystack payment was successfully processed.
+              Your payment was successfully processed.
             </p>
 
             <PaymentSummary checkout={checkout} className="mt-8" />
@@ -292,37 +255,33 @@ function MoMoPaymentCheckout({
           Complete payment
         </h1>
         <p className="mt-3 text-sm text-(--color-copy-soft)">
-          Complete your purchase securely via Paystack.
+          Complete your purchase securely via Flutterwave.
         </p>
 
         <article className="editorial-card mt-8 p-8">
           <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-            <span className="font-semibold uppercase tracking-wider">Secure Payment</span>
+            <span className="font-semibold uppercase tracking-wider">
+              Secure Payment
+            </span>
             <p className="mt-1 text-emerald-100/90">
-              You will be redirected to Paystack to complete your payment securely.
+              You will complete your payment securely inline via Mobile Money or
+              Card.
             </p>
           </div>
 
           <PaymentSummary checkout={checkout} />
 
           <div className="mt-8 space-y-3">
-            <Suspense fallback={
-              <button disabled className="cta-primary w-full justify-center py-4 disabled:cursor-not-allowed disabled:opacity-50">
-                Loading payment...
-              </button>
-            }>
-              <PaystackCheckout
-                config={paystackConfig}
-                onSuccess={onSuccess}
-                onClose={onClose}
-                isPaying={isPaying}
-                isPaid={checkout.status === 'paid'}
-                onInitiate={() => {
-                  paystackInfo('MOMO', paystackConfig.reference, 'payment button clicked')
-                  setIsPaying(true)
-                }}
-              />
-            </Suspense>
+            <FlutterwaveCheckout
+              config={flutterwaveConfig}
+              onSuccess={onSuccess}
+              onClose={onClose}
+              isPaying={isPaying}
+              isPaid={checkout.status === 'paid'}
+              onInitiate={() => {
+                setIsPaying(true)
+              }}
+            />
             <button
               type="button"
               onClick={() => void navigate({ to: '/cart' })}
@@ -387,7 +346,8 @@ function PaymentSummary({
             {checkout.paymentMethod}
           </p>
           <p>
-            <span className="text-(--color-copy-soft)">Email:</span> {checkout.email}
+            <span className="text-(--color-copy-soft)">Email:</span>{' '}
+            {checkout.email}
           </p>
         </div>
       </div>
@@ -423,7 +383,7 @@ function LoadingSpinner() {
 function SuccessIcon() {
   return (
     <div className="mb-6 flex justify-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20">
         <svg
           className="h-10 w-10 text-emerald-400"
           fill="none"

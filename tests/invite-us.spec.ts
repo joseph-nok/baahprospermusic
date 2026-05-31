@@ -6,7 +6,9 @@ import {
   waitForPageReady,
 } from './helpers/layout'
 
-async function waitForInviteFormHydrated(page: import('@playwright/test').Page) {
+async function waitForInviteFormHydrated(
+  page: import('@playwright/test').Page,
+) {
   await page.waitForLoadState('load')
   await expect(
     page.getByRole('button', { name: /submit invitation/i }),

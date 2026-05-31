@@ -73,27 +73,48 @@ export default function Footer() {
           <p className="site-footer__heading">Follow Us / Contact Us</p>
           <div className="site-footer__socials">
             {(!footerData || footerData.whatsapp) && (
-              <a href={footerData?.whatsapp || "#"} className="site-footer__social" aria-label="WhatsApp" target="_blank" rel="noreferrer">
+              <a
+                href={footerData?.whatsapp || '#'}
+                className="site-footer__social"
+                aria-label="WhatsApp"
+                target="_blank"
+                rel="noreferrer"
+              >
                 <MessageCircle size={15} />
               </a>
             )}
             {(!footerData || footerData.youtube) && (
               <a
-                href={footerData?.youtube || "https://www.youtube.com/@Prosper_Baah"}
+                href={
+                  footerData?.youtube || 'https://www.youtube.com/@Prosper_Baah'
+                }
                 className="site-footer__social"
                 aria-label="YouTube"
-                target="_blank" rel="noreferrer"
+                target="_blank"
+                rel="noreferrer"
               >
                 <CirclePlay size={15} />
               </a>
             )}
             {(!footerData || footerData.instagram) && (
-              <a href={footerData?.instagram || "#"} className="site-footer__social" aria-label="Instagram" target="_blank" rel="noreferrer">
+              <a
+                href={footerData?.instagram || '#'}
+                className="site-footer__social"
+                aria-label="Instagram"
+                target="_blank"
+                rel="noreferrer"
+              >
                 <Instagram size={15} />
               </a>
             )}
             {(!footerData || footerData.tiktok) && (
-              <a href={footerData?.tiktok || "#"} className="site-footer__social" aria-label="TikTok" target="_blank" rel="noreferrer">
+              <a
+                href={footerData?.tiktok || '#'}
+                className="site-footer__social"
+                aria-label="TikTok"
+                target="_blank"
+                rel="noreferrer"
+              >
                 <svg
                   width="15"
                   height="15"

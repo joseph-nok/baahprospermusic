@@ -31,7 +31,14 @@ const orderLineValidator = v.object({
 })
 
 type ProductLine = 'merch' | 'cap'
-type ProductColor = 'Black' | 'White' | 'black' | 'red' | 'white' | 'yellow' | 'blue'
+type ProductColor =
+  | 'Black'
+  | 'White'
+  | 'black'
+  | 'red'
+  | 'white'
+  | 'yellow'
+  | 'blue'
 type ProductSize = 'M' | 'L' | 'XL' | 'XXL' | 'XXXL'
 
 function requireNonEmptyField(label: string, value: string) {
@@ -403,7 +410,6 @@ export const createOrder = mutation({
         unitPrice: item.unitPrice,
         lineTotal: item.lineTotal,
       })
-
     }
 
     return orderId

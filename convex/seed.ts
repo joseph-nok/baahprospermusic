@@ -128,7 +128,8 @@ export const seedInitialData = mutation({
     }
 
     // 4. Market Products
-    const hasProducts = (await ctx.db.query('marketProducts').take(1)).length > 0
+    const hasProducts =
+      (await ctx.db.query('marketProducts').take(1)).length > 0
     if (!hasProducts || force) {
       if (force) {
         const existing = await ctx.db.query('marketProducts').take(100)
@@ -139,8 +140,10 @@ export const seedInitialData = mutation({
           productLine: 'cap' as const,
           name: 'Cap',
           category: 'Headwear',
-          description: 'Structured cap with ministry crest—comfortable for travel, events, and stage days.',
-          image: 'https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=1200&q=80',
+          description:
+            'Structured cap with ministry crest—comfortable for travel, events, and stage days.',
+          image:
+            'https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=1200&q=80',
           currency: 'GHS',
           price: 240.78,
           inStock: true,
@@ -150,8 +153,10 @@ export const seedInitialData = mutation({
           productLine: 'merch' as const,
           name: 'T-shirt',
           category: 'Apparel',
-          description: 'Official Baah Prosper Music cotton tee for rehearsals, outreach, and everyday wear.',
-          image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80',
+          description:
+            'Official Baah Prosper Music cotton tee for rehearsals, outreach, and everyday wear.',
+          image:
+            'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80',
           currency: 'GHS',
           price: 121.56,
           inStock: true,

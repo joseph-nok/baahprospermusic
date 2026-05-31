@@ -8,8 +8,8 @@ import {
   loadCartId,
   saveCart,
   saveCartId,
-  type CartItem,
 } from './cart'
+import type { CartItem } from './cart'
 
 const sampleItem: CartItem = {
   productLine: 'merch',

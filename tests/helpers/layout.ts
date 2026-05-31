@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 export const VIEWPORTS = {
   mobile: { width: 390, height: 844 },
@@ -23,10 +24,7 @@ export async function assertDesktopHeader(page: Page) {
   await expect(page.getByTestId('header-menu-trigger')).toBeHidden()
 }
 
-export async function assertHeaderForViewport(
-  page: Page,
-  projectName: string,
-) {
+export async function assertHeaderForViewport(page: Page, projectName: string) {
   if (projectName === 'mobile') {
     await assertMobileHeader(page)
   } else {

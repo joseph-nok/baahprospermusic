@@ -746,7 +746,7 @@ function StandardProductCard({
                   ...prev,
                   [lk]: {
                     ...selectedVariant,
-                    color: e.target.value as ProductVariant['color'],
+                    color: e.target.value,
                   },
                 }))
               }

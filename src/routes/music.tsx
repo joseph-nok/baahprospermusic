@@ -31,7 +31,10 @@ function MusicPage() {
 
           <div className="grid gap-8 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="editorial-card overflow-hidden rounded-2xl border border-white/5 bg-white/2">
+              <div
+                key={i}
+                className="editorial-card overflow-hidden rounded-2xl border border-white/5 bg-white/2"
+              >
                 <div className="aspect-video w-full bg-white/10" />
                 <div className="p-6 space-y-4">
                   <div className="h-6 w-3/4 bg-white/10 rounded-lg" />

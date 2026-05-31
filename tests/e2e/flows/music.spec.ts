@@ -11,11 +11,15 @@ test.describe('Music page interactions', () => {
     const toggle = page.getByRole('button', { name: /view lyrics/i }).first()
     await toggle.scrollIntoViewIfNeeded()
     await toggle.click()
-    await expect(page.getByRole('button', { name: /hide lyrics/i }).first()).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: /hide lyrics/i }).first(),
+    ).toBeVisible()
   })
 
   test('youtube link opens in new tab', async ({ page }) => {
-    const youtube = page.getByRole('link', { name: /watch on youtube/i }).first()
+    const youtube = page
+      .getByRole('link', { name: /watch on youtube/i })
+      .first()
     await expect(youtube).toHaveAttribute('target', '_blank')
     await expect(youtube).toHaveAttribute('href', /youtube/)
   })

@@ -8,7 +8,6 @@ import {
 import { internal } from './_generated/api'
 import { v } from 'convex/values'
 import type { Id } from './_generated/dataModel'
-import { paystackErr, paystackInfo } from './paystackLog'
 
 const productLineValidator = v.union(v.literal('merch'), v.literal('cap'))
 const sizeValidator = v.union(
@@ -93,13 +92,13 @@ function formatOrderItemsBreakdown(items: OrderItemSummary[]) {
     .join('\n')
 }
 
-type PaystackMetadataRecord = {
+type GenericMetadataRecord = {
   custom_fields?: unknown
   [key: string]: unknown
 }
 
 function getMetadataFieldValue(
-  metadata: PaystackMetadataRecord | undefined,
+  metadata: GenericMetadataRecord | undefined,
   variableName: string,
 ): string | null {
   const directValue =
@@ -145,7 +144,7 @@ function getMetadataFieldValue(
 
 function resolveOrderItemsBreakdown(
   items: OrderItemSummary[],
-  metadata?: PaystackMetadataRecord,
+  metadata?: GenericMetadataRecord,
 ): string {
   if (items.length) {
     return formatOrderItemsBreakdown(items)
@@ -488,8 +487,9 @@ export const getOrderEmailData = internalQuery({
       .join('\n')
 
     const metadataFallback =
-      typeof args.metadataFallback === 'object' && args.metadataFallback !== null
-        ? (args.metadataFallback as PaystackMetadataRecord)
+      typeof args.metadataFallback === 'object' &&
+      args.metadataFallback !== null
+        ? (args.metadataFallback as GenericMetadataRecord)
         : undefined
     const orderItemsBreakdown = resolveOrderItemsBreakdown(
       items,
@@ -511,21 +511,19 @@ export const getOrderEmailData = internalQuery({
   },
 })
 
-export const verifyPaystackPayment = action({
+export const verifyFlutterwavePayment = action({
   args: {
-    reference: v.string(),
+    transactionId: v.string(),
     checkoutId: v.id('checkouts'),
   },
   handler: async (ctx, args) => {
-    const secretKey =
-      process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_PRIVATE_KEY
+    const secretKey = process.env.FLW_SECRET_KEY
     if (!secretKey) {
-      paystackErr('VERIFY', args.reference, 'secret key not configured')
-      throw new Error('PAYSTACK_SECRET_KEY is not configured')
+      throw new Error('FLW_SECRET_KEY is not configured')
     }
 
     const response = await fetch(
-      `https://api.paystack.co/transaction/verify/${args.reference}`,
+      `https://api.flutterwave.com/v3/transactions/${args.transactionId}/verify`,
       {
         headers: {
           Authorization: `Bearer ${secretKey}`,
@@ -535,54 +533,44 @@ export const verifyPaystackPayment = action({
     const data = await response.json()
 
     if (!response.ok) {
-      paystackErr('VERIFY', args.reference, 'failed')
       throw new Error(data.message || 'Payment verification request failed')
     }
-    if (data.status && data.data?.status === 'success') {
-      const verifiedMetadata = data.data?.metadata as
-        | PaystackMetadataRecord
-        | undefined
-      const order: OrderEmailData = await ctx.runQuery(
-        internal.commerce.getOrderEmailData,
-        {
-          checkoutId: args.checkoutId,
-          metadataFallback: verifiedMetadata,
-        },
-      )
+
+    if (data.status === 'success' && data.data?.status === 'successful') {
       const paymentResult: { alreadyPaid: boolean } = await ctx.runMutation(
         internal.commerce.completePaymentInternal,
         { checkoutId: args.checkoutId },
       )
 
-      if (order.orderNotificationEmailSentAt) {
-        paystackInfo('VERIFY', args.reference, 'status: success')
-        return { success: true, emailSent: true }
+      const order = await ctx.runQuery(internal.commerce.getOrderEmailData, {
+        checkoutId: args.checkoutId,
+      })
+
+      if (!order.orderNotificationEmailSentAt) {
+        await ctx.runAction(internal.payments.processSuccessfulOrder, {
+          amount: Number(data.data.amount),
+          currency: String(data.data.currency),
+          customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          orderItems: order.orderItemsBreakdown,
+          transactionId: String(data.data.tx_ref || args.transactionId),
+        })
+
+        await ctx.runMutation(
+          internal.commerce.recordOrderNotificationEmailStatus,
+          {
+            checkoutId: args.checkoutId,
+            success: true,
+          },
+        )
       }
-
-      const emailResult = await sendPaidOrderEmail(order)
-      await ctx.runMutation(
-        internal.commerce.recordOrderNotificationEmailStatus,
-        {
-          checkoutId: args.checkoutId,
-          success: emailResult.success,
-          error: emailResult.error ?? '',
-        },
-      )
-
-      if (!emailResult.success) {
-        paystackErr('VERIFY', args.reference, 'order email failed', emailResult.error)
-      }
-
-      paystackInfo('VERIFY', args.reference, 'status: success')
 
       return {
         success: true,
-        emailSent: emailResult.success,
-        emailError: emailResult.success ? null : emailResult.error,
         alreadyPaid: paymentResult.alreadyPaid,
       }
     }
-    paystackErr('VERIFY', args.reference, 'failed')
+
     throw new Error('Payment verification failed')
   },
 })

@@ -14,7 +14,9 @@ test.describe('Gallery page', () => {
 
     if ((await album.count()) > 0) {
       await expect(album).toBeVisible()
-      await expect(page.getByRole('heading', { name: /spiritual journey/i })).toBeVisible()
+      await expect(
+        page.getByRole('heading', { name: /spiritual journey/i }),
+      ).toBeVisible()
     } else {
       await expect(empty).toBeVisible()
     }

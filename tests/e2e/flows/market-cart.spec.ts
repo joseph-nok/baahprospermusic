@@ -20,7 +20,9 @@ test.describe('Market and local cart', () => {
   test('persists item in localStorage when Add To Cart succeeds', async ({
     page,
   }) => {
-    const addButton = page.getByRole('button', { name: /^add to cart$/i }).first()
+    const addButton = page
+      .getByRole('button', { name: /^add to cart$/i })
+      .first()
     if ((await addButton.count()) === 0 || !(await addButton.isEnabled())) {
       test.skip()
       return

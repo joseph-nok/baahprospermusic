@@ -226,13 +226,13 @@ function AdminSettingsPage() {
   }
 
   // ── Merch Color Images ─────────────────────────────────────────────────
-  const convexProducts = useQuery((api as any).market.listProducts) as any[] | undefined
+  const convexProducts = useQuery((api as any).market.listProducts) as
+    | any[]
+    | undefined
   const generateUploadUrl = useMutation(api.merch.generateUploadUrl)
   const saveColorImage = useMutation(api.merch.saveColorImage)
   const deleteColorImage = useMutation(api.merch.deleteColorImage)
-  const allColorImages = useQuery(api.merch.getAllColorImages) as
-    | Record<string, Record<string, string>>
-    | undefined
+  const allColorImages = useQuery(api.merch.getAllColorImages)
 
   const [colorUpload, setColorUpload] = useState<{
     productId: string
@@ -251,7 +251,8 @@ function AdminSettingsPage() {
 
   const handleUploadColorImage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!colorUpload.productId || !colorUpload.colorName || !colorUpload.file) return
+    if (!colorUpload.productId || !colorUpload.colorName || !colorUpload.file)
+      return
     setColorUpload((p) => ({ ...p, uploading: true, success: false }))
     try {
       // 1. Get a short-lived upload URL from Convex
@@ -270,7 +271,12 @@ function AdminSettingsPage() {
         colorName: colorUpload.colorName.trim(),
         storageId,
       })
-      setColorUpload((p) => ({ ...p, file: null, success: true, uploading: false }))
+      setColorUpload((p) => ({
+        ...p,
+        file: null,
+        success: true,
+        uploading: false,
+      }))
       if (fileInputRef.current) fileInputRef.current.value = ''
       setTimeout(() => setColorUpload((p) => ({ ...p, success: false })), 3000)
     } catch (err) {
@@ -983,27 +989,43 @@ function AdminSettingsPage() {
                 <Palette size={20} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Merch Color Images</h2>
+                <h2 className="text-xl font-bold text-white">
+                  Merch Color Images
+                </h2>
                 <p className="text-sm text-(--color-copy-soft)">
-                  Upload a PNG per product per color. Swaps automatically on the market page.
+                  Upload a PNG per product per color. Swaps automatically on the
+                  market page.
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleUploadColorImage} className="grid gap-4 mb-8 p-4 rounded-xl bg-white/5 border border-white/5">
-              <h4 className="text-sm font-bold text-white uppercase tracking-wider">Upload Color Image</h4>
+            <form
+              onSubmit={handleUploadColorImage}
+              className="grid gap-4 mb-8 p-4 rounded-xl bg-white/5 border border-white/5"
+            >
+              <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                Upload Color Image
+              </h4>
 
               <label className="field-shell">
                 <span className="field-label">Product</span>
                 <select
                   className="field-input py-2"
                   value={colorUpload.productId}
-                  onChange={(e) => setColorUpload((p) => ({ ...p, productId: e.target.value }))}
+                  onChange={(e) =>
+                    setColorUpload((p) => ({ ...p, productId: e.target.value }))
+                  }
                   required
                 >
-                  <option value="" className="bg-[#1c1b1b]">Select a product…</option>
+                  <option value="" className="bg-[#1c1b1b]">
+                    Select a product…
+                  </option>
                   {convexProducts?.map((p: any) => (
-                    <option key={p._id} value={p._id} className="bg-[#1c1b1b] text-white">
+                    <option
+                      key={p._id}
+                      value={p._id}
+                      className="bg-[#1c1b1b] text-white"
+                    >
                       {p.name} ({p.productLine})
                     </option>
                   ))}
@@ -1011,13 +1033,17 @@ function AdminSettingsPage() {
               </label>
 
               <label className="field-shell">
-                <span className="field-label">Color Name (e.g. Black, Red, Blue, Yellow)</span>
+                <span className="field-label">
+                  Color Name (e.g. Black, Red, Blue, Yellow)
+                </span>
                 <input
                   type="text"
                   className="field-input"
                   placeholder="Black"
                   value={colorUpload.colorName}
-                  onChange={(e) => setColorUpload((p) => ({ ...p, colorName: e.target.value }))}
+                  onChange={(e) =>
+                    setColorUpload((p) => ({ ...p, colorName: e.target.value }))
+                  }
                   required
                 />
               </label>
@@ -1029,7 +1055,12 @@ function AdminSettingsPage() {
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   className="field-input py-2 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-xs file:font-bold file:text-white file:uppercase file:tracking-wider cursor-pointer"
-                  onChange={(e) => setColorUpload((p) => ({ ...p, file: e.target.files?.[0] ?? null }))}
+                  onChange={(e) =>
+                    setColorUpload((p) => ({
+                      ...p,
+                      file: e.target.files?.[0] ?? null,
+                    }))
+                  }
                   required
                 />
               </label>
@@ -1051,40 +1082,58 @@ function AdminSettingsPage() {
             {/* Current color images grouped by product */}
             <div className="grid gap-6">
               {convexProducts
-                ?.filter((p: any) => allColorImages?.[p._id] && Object.keys(allColorImages[p._id]).length > 0)
+                ?.filter(
+                  (p: any) =>
+                    allColorImages?.[p._id] &&
+                    Object.keys(allColorImages[p._id]).length > 0,
+                )
                 .map((p: any) => (
                   <div key={p._id}>
                     <p className="text-xs font-bold uppercase tracking-wider text-(--color-copy-muted) mb-3">
                       {p.name}
                     </p>
                     <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                      {Object.entries(allColorImages?.[p._id] ?? {}).map(([colorName, url]) => (
-                        <div key={colorName} className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/5">
-                          <img
-                            src={url as string}
-                            alt={colorName}
-                            className="aspect-square w-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                            <span className="text-xs font-bold text-white uppercase tracking-wider">{colorName}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Delete ${colorName} image for ${p.name}?`)) {
-                                  deleteColorImage({ productId: p._id, colorName })
-                                }
-                              }}
-                              className="text-red-400 hover:text-red-300 p-1"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                      {Object.entries(allColorImages?.[p._id] ?? {}).map(
+                        ([colorName, url]) => (
+                          <div
+                            key={colorName}
+                            className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/5"
+                          >
+                            <img
+                              src={url}
+                              alt={colorName}
+                              className="aspect-square w-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                {colorName}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (
+                                    confirm(
+                                      `Delete ${colorName} image for ${p.name}?`,
+                                    )
+                                  ) {
+                                    deleteColorImage({
+                                      productId: p._id,
+                                      colorName,
+                                    })
+                                  }
+                                }}
+                                className="text-red-400 hover:text-red-300 p-1"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                            <p className="absolute bottom-0 inset-x-0 bg-black/70 text-center text-[10px] font-bold uppercase tracking-wider text-white py-1">
+                              {colorName}
+                            </p>
                           </div>
-                          <p className="absolute bottom-0 inset-x-0 bg-black/70 text-center text-[10px] font-bold uppercase tracking-wider text-white py-1">
-                            {colorName}
-                          </p>
-                        </div>
-                      ))}
+                        ),
+                      )}
                     </div>
                   </div>
                 ))}
