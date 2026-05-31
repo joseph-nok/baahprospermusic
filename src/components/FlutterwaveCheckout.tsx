@@ -17,7 +17,7 @@ interface FlutterwaveCheckoutProps {
     phoneNumber: string
     orderItemsBreakdown: string
     checkoutId: string
-  }
+  } | null
   onSuccess: (response: { transaction_id: string; tx_ref: string }) => void
   onClose: () => void
   isPaying: boolean
@@ -33,25 +33,72 @@ export default function FlutterwaveCheckout({
   isPaid,
   onInitiate,
 }: FlutterwaveCheckoutProps) {
+  const [isMounted, setIsMounted] = useState(false)
   const [scriptLoaded, setScriptLoaded] = useState(false)
 
-  // Dynamically load the Flutterwave script in a lag-free manner
+  // Dynamically load the Flutterwave script and manage hydration-safe event listeners
   useEffect(() => {
+    setIsMounted(true)
+
+    if (typeof window === 'undefined') return
+
+    // Track any window 'message' event listeners added while this component is mounted
+    // to cleanly dispose of them and prevent MaxListenersExceededWarning memory leaks
+    const messageListeners: Array<(ev: MessageEvent) => any> = []
+    const originalAddEventListener = window.addEventListener
+
+    window.addEventListener = function (
+      type: string,
+      listener: any,
+      options?: any,
+    ) {
+      if (type === 'message') {
+        messageListeners.push(listener)
+      }
+      return originalAddEventListener.call(this, type, listener, options)
+    }
+
     if (window.FlutterwaveCheckout) {
       setScriptLoaded(true)
-      return
+    } else {
+      const script = document.createElement('script')
+      script.src = 'https://checkout.flutterwave.com/v3.js'
+      script.async = true
+      script.onload = () => setScriptLoaded(true)
+      document.body.appendChild(script)
     }
-
-    const script = document.createElement('script')
-    script.src = 'https://checkout.flutterwave.com/v3.js'
-    script.async = true
-    script.onload = () => setScriptLoaded(true)
-    document.body.appendChild(script)
 
     return () => {
-      // Keep script in body to avoid reloading on remounts
+      // Restore the original addEventListener method
+      window.addEventListener = originalAddEventListener
+
+      // Clean up all captured message event listeners to prevent memory leaks
+      messageListeners.forEach((listener) => {
+        window.removeEventListener('message', listener)
+      })
+
+      // Clean up the script from the DOM
+      const script = document.querySelector(
+        'script[src="https://checkout.flutterwave.com/v3.js"]',
+      )
+      if (script && document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
     }
   }, [])
+
+  // Static placeholder button matching the server-rendered skeleton perfectly
+  if (!isMounted || !config) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="cta-primary w-full justify-center py-4 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Pay with Mobile Money / Card
+      </button>
+    )
+  }
 
   const handlePay = () => {
     if (!scriptLoaded || !window.FlutterwaveCheckout) {
@@ -82,7 +129,6 @@ export default function FlutterwaveCheckout({
         logo: 'https://checkout.flutterwave.com/assets/img/flutterwave-badge.svg',
       },
       callback: (data: any) => {
-        // Successful payment callback
         onSuccess({
           transaction_id: String(data.transaction_id || data.id),
           tx_ref: String(data.tx_ref),

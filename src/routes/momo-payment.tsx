@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useAction } from 'convex/react'
-import { useMemo, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import FlutterwaveCheckout from '../components/FlutterwaveCheckout'
@@ -156,14 +156,21 @@ function MoMoPaymentCheckout({
   const orderItemsBreakdown = formatOrderItemsBreakdown(checkout.items)
   const phoneNumber = checkout.shippingAddress.phone || checkout.momoNumber
 
-  const paymentReference = useMemo(
-    () => `${checkout._id}_${Date.now()}`,
-    [checkout._id],
-  )
+  const [flutterwaveConfig, setFlutterwaveConfig] = useState<{
+    reference: string
+    email: string
+    amount: number
+    publicKey: string
+    currency: string
+    customerName: string
+    phoneNumber: string
+    orderItemsBreakdown: string
+    checkoutId: string
+  } | null>(null)
 
-  const flutterwaveConfig = useMemo(
-    () => ({
-      reference: paymentReference,
+  useEffect(() => {
+    setFlutterwaveConfig({
+      reference: `${checkout._id}_${Date.now()}`,
       email: checkout.email || '',
       amount: checkout.totalAmount || 0,
       publicKey: import.meta.env.VITE_FLW_PUBLIC_KEY || '',
@@ -172,18 +179,16 @@ function MoMoPaymentCheckout({
       phoneNumber,
       orderItemsBreakdown,
       checkoutId: checkout._id,
-    }),
-    [
-      checkout._id,
-      checkout.currency,
-      checkout.email,
-      checkout.totalAmount,
-      customerName,
-      orderItemsBreakdown,
-      paymentReference,
-      phoneNumber,
-    ],
-  )
+    })
+  }, [
+    checkout._id,
+    checkout.email,
+    checkout.totalAmount,
+    checkout.currency,
+    customerName,
+    phoneNumber,
+    orderItemsBreakdown,
+  ])
 
   const onSuccess = async (response: {
     transaction_id: string
