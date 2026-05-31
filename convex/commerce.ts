@@ -82,14 +82,27 @@ function formatGhsAmount(amount: number) {
 function formatOrderItemsBreakdown(items: OrderItemSummary[]) {
   if (!items.length) return 'N/A'
 
-  return items
-    .map((item) => {
-      const productName = item.productName.trim() || 'Merch'
-      const color = item.color.trim()
-      const size = item.size.trim()
-      return `${item.quantity}x ${productName} - Color: ${color}, Size: ${size}`
-    })
-    .join('\n')
+  const headers = ['Qty', 'Item', 'Color', 'Size']
+  const rows = items.map((item) => [
+    `${item.quantity}x`,
+    item.productName.trim() || 'Merch',
+    item.color.trim() || 'N/A',
+    item.size.trim() || 'N/A',
+  ])
+
+  const colWidths = headers.map((header, i) =>
+    Math.max(header.length, ...rows.map((row) => row[i].length)),
+  )
+
+  const pad = (str: string, width: number) => str.padEnd(width, ' ')
+
+  const headerLine = `| ${headers.map((h, i) => pad(h, colWidths[i])).join(' | ')} |`
+  const separatorLine = `| ${colWidths.map((w) => '-'.repeat(w)).join(' | ')} |`
+  const rowLines = rows.map(
+    (row) => `| ${row.map((val, i) => pad(val, colWidths[i])).join(' | ')} |`,
+  )
+
+  return [headerLine, separatorLine, ...rowLines].join('\n')
 }
 
 type GenericMetadataRecord = {
@@ -214,7 +227,7 @@ function buildOrderEmailHtml({
                     <div style="white-space: pre-wrap; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; color: #111827; font-size: 14px; line-height: 1.65;">${escapeHtml(deliveryInfo)}</div>
 
                     <h2 style="margin: 28px 0 12px; color: #111827; font-size: 18px; line-height: 1.35;">Order items</h2>
-                    <div style="white-space: pre-wrap; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; color: #111827; font-size: 14px; line-height: 1.65;">${escapeHtml(orderItemsBreakdown)}</div>
+                    <div style="white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; color: #111827; font-size: 14px; line-height: 1.65;">${escapeHtml(orderItemsBreakdown)}</div>
                   </td>
                 </tr>
               </table>

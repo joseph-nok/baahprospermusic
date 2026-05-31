@@ -25,12 +25,28 @@ type CheckoutItemSummary = {
 
 function formatOrderItemsBreakdown(items: CheckoutItemSummary[] = []) {
   if (!items.length) return 'N/A'
-  return items
-    .map((item) => {
-      const productName = item.productName.trim() || 'Merch'
-      return `${item.quantity}x ${productName} - Color: ${item.color.trim()}, Size: ${item.size.trim()}`
-    })
-    .join(', ')
+
+  const headers = ['Qty', 'Item', 'Color', 'Size']
+  const rows = items.map((item) => [
+    `${item.quantity}x`,
+    item.productName.trim() || 'Merch',
+    item.color.trim() || 'N/A',
+    item.size.trim() || 'N/A',
+  ])
+
+  const colWidths = headers.map((header, i) =>
+    Math.max(header.length, ...rows.map((row) => row[i].length)),
+  )
+
+  const pad = (str: string, width: number) => str.padEnd(width, ' ')
+
+  const headerLine = `| ${headers.map((h, i) => pad(h, colWidths[i])).join(' | ')} |`
+  const separatorLine = `| ${colWidths.map((w) => '-'.repeat(w)).join(' | ')} |`
+  const rowLines = rows.map(
+    (row) => `| ${row.map((val, i) => pad(val, colWidths[i])).join(' | ')} |`,
+  )
+
+  return [headerLine, separatorLine, ...rowLines].join('\n')
 }
 
 function MoMoPaymentPage() {
