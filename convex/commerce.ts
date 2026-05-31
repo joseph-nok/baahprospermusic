@@ -236,7 +236,7 @@ async function sendPaidOrderEmail(order: OrderEmailData) {
     process.env.ORDER_NOTIFICATION_EMAIL || 'josephnok088@gmail.com'
   const fromEmail =
     process.env.ORDER_NOTIFICATION_FROM ||
-    'Orders <orders@baahprospermusic.com>'
+    'Orders <orders@onboarding@resend.dev>'
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
