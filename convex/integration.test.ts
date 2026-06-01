@@ -218,9 +218,11 @@ describe('Convex backend integration', () => {
 
     expect(orderEmailData.orderItemsBreakdown).toBe(
       [
-        '3x Ministry Shirt - Color: red, Size: M',
-        '1x Ministry Shirt - Color: black, Size: XL',
-        '2x Ministry Shirt - Color: blue, Size: M',
+        '| Qty | Item           | Color | Size |',
+        '| --- | -------------- | ----- | ---- |',
+        '| 3x  | Ministry Shirt | red   | M    |',
+        '| 1x  | Ministry Shirt | black | XL   |',
+        '| 2x  | Ministry Shirt | blue  | M    |',
       ].join('\n'),
     )
   })

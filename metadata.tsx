@@ -1,10 +1,9 @@
 import { createServerFn, useServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
-import {
-  paystackErr,
-  paystackInfo,
-  maskPaystackUrl,
-} from './src/lib/paystack-log'
+
+const paystackErr = (act: string, ref: any, msg: string, err?: any) => console.error(act, ref, msg, err)
+const paystackInfo = (act: string, ref: any, msg: string) => console.log(act, ref, msg)
+const maskPaystackUrl = (url: string) => url
 
 declare const process: {
   env: {
@@ -69,8 +68,8 @@ function validateCheckoutInput(data: CheckoutInput) {
     throw new Error('A valid checkout amount is required.')
   }
 
-  if (!data.customerName || !data.phone || !data.address) {
-    throw new Error('Customer name, phone number, and address are required.')
+  if (!data.customerName || !data.phone) {
+    throw new Error('Customer name and phone number are required.')
   }
 
   if (!data.city || !data.region) {
@@ -118,13 +117,13 @@ export const initializePayment = createServerFn({ method: 'POST' })
       throw new Error('PAYSTACK_SECRET_KEY is not configured on the server.')
     }
 
-    const markdownAddress = `
-### 📍 Shipping Address
-* **Street/Digital:** ${data.address}
-* **City:** ${data.city}
-* **Region:** ${data.region}
-* **Country:** Ghana
-    `.trim()
+    const markdownAddress = [
+      '### 📍 Shipping Address',
+      data.address ? `* **Street/Digital:** ${data.address}` : '',
+      `* **City:** ${data.city}`,
+      `* **Region:** ${data.region}`,
+      '* **Country:** Ghana'
+    ].filter(Boolean).join('\n')
 
     const markdownCartSummary = formatCartItemsBreakdown(data.cart)
 

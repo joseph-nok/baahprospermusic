@@ -121,7 +121,6 @@ function CartPage() {
     const firstName = String(formData.get('firstName') ?? '').trim()
     const lastName = String(formData.get('lastName') ?? '').trim()
     const phone = String(formData.get('phone') ?? '').trim()
-    const addressLine1 = String(formData.get('addressLine1') ?? '').trim()
     const region = String(formData.get('region') ?? '').trim()
     const city = String(formData.get('city') ?? '').trim()
     const momo = String(formData.get('momoNumber') ?? '').trim()
@@ -130,8 +129,8 @@ function CartPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       return 'A valid email is required.'
     if (!/^\d{9}$/.test(phone)) return 'Phone number must be 9 digits.'
-    if (!addressLine1 || !region || !city)
-      return 'Shipping address fields are required.'
+    if (!region || !city)
+      return 'Region and city are required.'
     if (!/^\d{9}$/.test(momo)) return 'MoMo number must be 9 digits.'
     return null
   }
@@ -347,11 +346,10 @@ function CartPage() {
               defaultValue=""
             />
             <label className="field-shell">
-              <span className="field-label">Address</span>
+              <span className="field-label">Address (Optional)</span>
               <input
                 className="field-input"
                 name="addressLine1"
-                required
                 placeholder="Street, apartment/house/unit, etc"
               />
             </label>
@@ -469,7 +467,7 @@ function CartPage() {
                         <span className="text-(--color-copy-soft)">
                           Address:
                         </span>{' '}
-                        {checkoutPreview.shippingAddress.addressLine1}
+                        {checkoutPreview.shippingAddress.addressLine1 || 'N/A'}
                       </p>
                       <p>
                         <span className="text-(--color-copy-soft)">City:</span>{' '}

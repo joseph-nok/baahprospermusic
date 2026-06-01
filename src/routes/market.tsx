@@ -199,9 +199,6 @@ function MarketPage() {
               GHS {total.toFixed(2)}
             </span>
           </div>
-          <Link to="/cart" className="cta-primary" preload="intent">
-            Go To Cart
-          </Link>
         </div>
 
         {status ? (
@@ -266,6 +263,14 @@ function MarketPage() {
             }
           })}
         </div>
+
+        {productList.length > 0 && (
+          <div className="mt-8 flex justify-center">
+            <Link to="/cart" className="cta-primary min-w-[200px] justify-center text-center" preload="intent">
+              Go To Cart
+            </Link>
+          </div>
+        )}
 
         {productList.length === 0 ? (
           <article className="editorial-card mt-10 p-6">

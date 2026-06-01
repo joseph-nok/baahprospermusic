@@ -144,6 +144,15 @@ type MoMoCheckout = {
   }
 }
 
+function formatPhoneNumber(num: string) {
+  if (!num) return num
+  const cleaned = num.trim()
+  if (cleaned.length === 9 && !cleaned.startsWith('0')) {
+    return '0' + cleaned
+  }
+  return cleaned
+}
+
 function MoMoPaymentCheckout({
   checkout,
   verifyPayment,
@@ -256,7 +265,7 @@ function MoMoPaymentCheckout({
 
     const customerName = `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
     const orderItemsBreakdown = formatOrderItemsBreakdown(checkout.items)
-    const phoneNumber = checkout.shippingAddress.phone || checkout.momoNumber
+    const phoneNumber = formatPhoneNumber(checkout.shippingAddress.phone || checkout.momoNumber)
     const uniqueTxRef = `${checkout._id}_${Date.now()}`
 
       ; ;(window as any).FlutterwaveCheckout({
@@ -287,7 +296,13 @@ function MoMoPaymentCheckout({
             )
             const customerName =
               `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
-            const deliveryAddress = `${checkout.shippingAddress.addressLine1}, ${checkout.shippingAddress.city}, ${checkout.shippingAddress.region}, ${checkout.shippingAddress.country}`
+            const addressParts = [
+              checkout.shippingAddress.addressLine1,
+              checkout.shippingAddress.city,
+              checkout.shippingAddress.region,
+              checkout.shippingAddress.country
+            ].filter(Boolean)
+            const deliveryAddress = addressParts.join(', ')
 
             await verifyPayment({
               transactionId: data.transaction_id.toString(),
@@ -295,7 +310,7 @@ function MoMoPaymentCheckout({
               customerName: customerName,
               customerEmail: checkout.email || 'N/A',
               phoneNumber:
-                checkout.shippingAddress.phone || checkout.momoNumber || 'N/A',
+                formatPhoneNumber(checkout.shippingAddress.phone || checkout.momoNumber || 'N/A'),
               deliveryInfo: deliveryAddress,
               orderItemsBreakdown: orderItemsBreakdown,
             })
@@ -474,7 +489,7 @@ function PaymentSummary({
           <div className="flex justify-between">
             <span className="text-zinc-500">Mobile Money:</span>
             <span className="font-medium text-white">
-              {checkout.momoNumber}
+              {formatPhoneNumber(checkout.momoNumber)}
             </span>
           </div>
           <div className="flex justify-between">
@@ -497,14 +512,16 @@ function PaymentSummary({
         </p>
         <div className="space-y-1 text-sm text-zinc-300">
           <p className="font-semibold text-white">{customerName}</p>
-          <p>{checkout.shippingAddress.addressLine1}</p>
+          {checkout.shippingAddress.addressLine1 && (
+            <p>{checkout.shippingAddress.addressLine1}</p>
+          )}
           <p>
             {checkout.shippingAddress.city}, {checkout.shippingAddress.region}
           </p>
           <p>{checkout.shippingAddress.country}</p>
           {checkout.shippingAddress.phone && (
             <p className="pt-1 text-xs text-zinc-500">
-              Phone: {checkout.shippingAddress.phone}
+              Phone: {formatPhoneNumber(checkout.shippingAddress.phone)}
             </p>
           )}
         </div>
