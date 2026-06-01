@@ -29,10 +29,11 @@ http.route({
     }
 
     // 3. Event Validation: Process only if event is "charge.completed" and status is "successful"
-    const event = payload.event
-    const data = payload.data
+    const event = payload['event.type'] || payload.event
+    const status = payload.data?.status || payload.status
+    const data = payload.data || payload
 
-    if (event === 'charge.completed' && data?.status === 'successful') {
+    if (event === 'charge.completed' && status === 'successful') {
       // 4. Data Extraction
       const amount = Number(data.amount)
       const currency = String(data.currency || 'GHS')
@@ -97,7 +98,7 @@ http.route({
       }
     } else {
       console.log(
-        `[FLUTTERWAVE WEBHOOK] Ignored event: ${event}, status: ${data?.status}`,
+        `[FLUTTERWAVE WEBHOOK] Ignored event: ${event}, status: ${status}`,
       )
     }
 
