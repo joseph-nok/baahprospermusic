@@ -28,12 +28,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
           'Baah Prosper Music official site for ministry updates, music, gallery, and event invitations.',
       },
     ],
-    // 🛠️ THIS TELLS THE BROWSER TO USE YOUR FAVICON.PNG ASSET DIRECTLY
+    // 🛠️ THIS TELLS THE BROWSER TO USE YOUR favicon.ico ASSET DIRECTLY
     links: [
       {
         rel: 'icon',
         type: 'image/png',
-        href: '/favicon.png',
+        href: '/favicon.ico',
       },
     ],
   }),
