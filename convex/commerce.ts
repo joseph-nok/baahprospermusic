@@ -525,7 +525,112 @@ export const getOrderEmailData = internalQuery({
 })
 
 // =====================================================================
-// PLACE THIS REFACTORED BLOCK AT THE ABSOLUTE BOTTOM OF CONVEX/COMMERCE.TS
+// Internal helper query used by actions to read checkout + items
+// =====================================================================
+
+export const getCheckoutInternal = internalQuery({
+  args: { checkoutId: v.id('checkouts') },
+  handler: async (ctx, args) => {
+    const checkout = await ctx.db.get(args.checkoutId)
+    if (!checkout) return null
+
+    const items = await ctx.db
+      .query('checkoutItems')
+      .withIndex('by_checkoutId', (q) => q.eq('checkoutId', args.checkoutId))
+      .collect()
+
+    return { ...checkout, items }
+  },
+})
+
+// =====================================================================
+// Redirect-based Flutterwave payment initiation (replaces inline popup)
+// =====================================================================
+
+export const initiateFlutterwaveRedirect = action({
+  args: {
+    checkoutId: v.id('checkouts'),
+    redirectUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const checkout: any = await ctx.runQuery(
+      internal.commerce.getCheckoutInternal,
+      { checkoutId: args.checkoutId },
+    )
+
+    if (!checkout) throw new Error('Checkout not found.')
+    if (checkout.status === 'paid') {
+      return { alreadyPaid: true, link: null as string | null }
+    }
+
+    const secretKey = process.env.FLW_SECRET_KEY
+    if (!secretKey) {
+      throw new Error(
+        'Payment gateway is not configured. Please contact support.',
+      )
+    }
+
+    const customerName =
+      [checkout.shippingAddress.firstName, checkout.shippingAddress.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Customer'
+
+    const orderItemsBreakdown = formatOrderItemsBreakdown(
+      (checkout.items || []).map((i: any) => ({
+        productName: i.productName,
+        quantity: i.quantity,
+        color: i.color,
+        size: i.size,
+      })),
+    )
+
+    const txRef = `${String(args.checkoutId)}_${Date.now()}`
+
+    const response = await fetch('https://api.flutterwave.com/v3/payments', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tx_ref: txRef,
+        amount: checkout.totalAmount,
+        currency: checkout.currency || 'GHS',
+        redirect_url: args.redirectUrl,
+        customer: {
+          email: checkout.email || '',
+          phone_number:
+            checkout.shippingAddress.phone || checkout.momoNumber || '',
+          name: customerName,
+        },
+        meta: {
+          order_items: orderItemsBreakdown,
+          checkout_id: String(args.checkoutId),
+        },
+        customizations: {
+          title: 'Baah Prosper Music',
+          description: 'Secure Payment for Merch Order',
+        },
+        payment_options: 'mobilemoneyghana, card',
+      }),
+    })
+
+    const result: any = await response.json()
+
+    if (result.status === 'success' && result.data?.link) {
+      return { alreadyPaid: false, link: result.data.link as string }
+    }
+
+    console.error('[FLW REDIRECT] Initiation failed:', JSON.stringify(result))
+    throw new Error(
+      result.message || 'Could not initiate payment. Please try again.',
+    )
+  },
+})
+
+// =====================================================================
+// Flutterwave payment verification (called from webhook & callback)
 // =====================================================================
 
 export const verifyFlutterwavePayment = action({

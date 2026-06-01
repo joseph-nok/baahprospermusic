@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PaymentCallbackRouteImport } from './routes/payment-callback'
 import { Route as MusicRouteImport } from './routes/music'
 import { Route as MomoPaymentRouteImport } from './routes/momo-payment'
 import { Route as MarketRouteImport } from './routes/market'
@@ -19,6 +20,11 @@ import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const PaymentCallbackRoute = PaymentCallbackRouteImport.update({
+  id: '/payment-callback',
+  path: '/payment-callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MusicRoute = MusicRouteImport.update({
   id: '/music',
   path: '/music',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/market': typeof MarketRoute
   '/momo-payment': typeof MomoPaymentRoute
   '/music': typeof MusicRoute
+  '/payment-callback': typeof PaymentCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/market': typeof MarketRoute
   '/momo-payment': typeof MomoPaymentRoute
   '/music': typeof MusicRoute
+  '/payment-callback': typeof PaymentCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/market': typeof MarketRoute
   '/momo-payment': typeof MomoPaymentRoute
   '/music': typeof MusicRoute
+  '/payment-callback': typeof PaymentCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/market'
     | '/momo-payment'
     | '/music'
+    | '/payment-callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/market'
     | '/momo-payment'
     | '/music'
+    | '/payment-callback'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/market'
     | '/momo-payment'
     | '/music'
+    | '/payment-callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,10 +157,18 @@ export interface RootRouteChildren {
   MarketRoute: typeof MarketRoute
   MomoPaymentRoute: typeof MomoPaymentRoute
   MusicRoute: typeof MusicRoute
+  PaymentCallbackRoute: typeof PaymentCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/payment-callback': {
+      id: '/payment-callback'
+      path: '/payment-callback'
+      fullPath: '/payment-callback'
+      preLoaderRoute: typeof PaymentCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/music': {
       id: '/music'
       path: '/music'
@@ -225,16 +245,8 @@ const rootRouteChildren: RootRouteChildren = {
   MarketRoute: MarketRoute,
   MomoPaymentRoute: MomoPaymentRoute,
   MusicRoute: MusicRoute,
+  PaymentCallbackRoute: PaymentCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

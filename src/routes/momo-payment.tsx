@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useAction, useQuery } from 'convex/react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 
@@ -23,38 +23,16 @@ type CheckoutItemSummary = {
   size: string
 }
 
-function formatOrderItemsBreakdown(items: CheckoutItemSummary[] = []) {
-  if (!items.length) return 'N/A'
-
-  const headers = ['Qty', 'Item', 'Color', 'Size']
-  const rows = items.map((item) => [
-    `${item.quantity}x`,
-    item.productName.trim() || 'Merch',
-    item.color.trim() || 'N/A',
-    item.size.trim() || 'N/A',
-  ])
-
-  const colWidths = headers.map((header, i) =>
-    Math.max(header.length, ...rows.map((row) => row[i].length)),
-  )
-
-  const pad = (str: string, width: number) => str.padEnd(width, ' ')
-
-  const headerLine = `| ${headers.map((h, i) => pad(h, colWidths[i])).join(' | ')} |`
-  const separatorLine = `| ${colWidths.map((w) => '-'.repeat(w)).join(' | ')} |`
-  const rowLines = rows.map(
-    (row) => `| ${row.map((val, i) => pad(val, colWidths[i])).join(' | ')} |`,
-  )
-
-  return [headerLine, separatorLine, ...rowLines].join('\n')
+function formatPhoneNumber(num: string) {
+  if (!num) return num
+  const cleaned = num.trim()
+  if (cleaned.length === 9 && !cleaned.startsWith('0')) {
+    return '0' + cleaned
+  }
+  return cleaned
 }
 
 function MoMoPaymentPage() {
-  const [isMounted, setIsMounted] = useState(false)
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
   const navigate = useNavigate()
   const convexApi = api as any
   const { checkoutId } = Route.useSearch()
@@ -63,18 +41,29 @@ function MoMoPaymentPage() {
     convexApi.commerce.getCheckout,
     checkoutId ? { checkoutId: checkoutId as Id<'checkouts'> } : 'skip',
   )
-  const verifyPayment = useAction(convexApi.commerce.verifyFlutterwavePayment)
+  const initiatePayment = useAction(
+    convexApi.commerce.initiateFlutterwaveRedirect,
+  )
 
-  if (!isMounted || checkout === undefined) {
+  const [isPaying, setIsPaying] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // ── Loading ─────────────────────────────────────────────────────────
+
+  if (checkout === undefined) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4">
         <article className="p-8 text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-white" />
-          <p className="mt-6 text-xl font-bold text-white">Loading payment...</p>
+          <p className="mt-6 text-xl font-bold text-white">
+            Loading payment...
+          </p>
         </article>
       </main>
     )
   }
+
+  // ── Missing checkout ID ─────────────────────────────────────────────
 
   if (!checkoutId) {
     return (
@@ -95,6 +84,8 @@ function MoMoPaymentPage() {
     )
   }
 
+  // ── Checkout not found ──────────────────────────────────────────────
+
   if (checkout === null) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4">
@@ -114,242 +105,20 @@ function MoMoPaymentPage() {
     )
   }
 
-  return (
-    <MoMoPaymentCheckout
-      checkout={checkout}
-      verifyPayment={verifyPayment}
-      navigate={navigate}
-    />
-  )
-}
+  // ── Already paid ────────────────────────────────────────────────────
 
-type MoMoCheckout = {
-  _id: Id<'checkouts'>
-  email: string
-  momoNumber: string
-  paymentReference: string
-  totalAmount: number
-  currency?: string
-  status: string
-  paymentMethod: string
-  items?: CheckoutItemSummary[]
-  shippingAddress: {
-    firstName: string
-    lastName: string
-    phone: string
-    addressLine1: string
-    region: string
-    city: string
-    country: string
-  }
-}
-
-function formatPhoneNumber(num: string) {
-  if (!num) return num
-  const cleaned = num.trim()
-  if (cleaned.length === 9 && !cleaned.startsWith('0')) {
-    return '0' + cleaned
-  }
-  return cleaned
-}
-
-function MoMoPaymentCheckout({
-  checkout,
-  verifyPayment,
-  navigate,
-}: {
-  checkout: MoMoCheckout
-  verifyPayment: (args: {
-    transactionId: string
-    checkoutId: Id<'checkouts'>
-    customerName: string
-    customerEmail: string
-    phoneNumber: string
-    deliveryInfo: string
-    orderItemsBreakdown: string
-  }) => Promise<unknown>
-  navigate: ReturnType<typeof useNavigate>
-}) {
-  const [paymentStep, setPaymentStep] = useState<'review' | 'success'>('review')
-  const [isPaying, setIsPaying] = useState(false)
-  const [scriptLoaded, setScriptLoaded] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
-
-  useEffect(() => {
-    setIsMounted(true)
-    if (typeof window === 'undefined') return
-
-    // Suppress third-party extension stream warnings from cluttering the developer console
-    const originalConsoleWarn = console.warn
-    const originalConsoleError = console.error
-
-    console.warn = function (...args: any[]) {
-      const msg = args.join(' ')
-      if (
-        msg.includes('MaxListenersExceededWarning') ||
-        msg.includes('ObjectMultiplex') ||
-        msg.includes('orphaned data for stream')
-      ) {
-        return
-      }
-      return originalConsoleWarn.apply(console, args)
-    }
-
-    console.error = function (...args: any[]) {
-      const msg = args.join(' ')
-      if (
-        msg.includes('MaxListenersExceededWarning') ||
-        msg.includes('ObjectMultiplex') ||
-        msg.includes('orphaned data for stream')
-      ) {
-        return
-      }
-      return originalConsoleError.apply(console, args)
-    }
-
-    // Intercept and track all 'message' event listeners added while this component is active
-    // to cleanly dispose of them on unmount and resolve the MaxListenersExceededWarning.
-    const messageListeners: Array<(ev: MessageEvent) => any> = []
-    const originalAddEventListener = window.addEventListener
-
-    window.addEventListener = function (
-      type: string,
-      listener: any,
-      options?: any,
-    ) {
-      if (type === 'message') {
-        messageListeners.push(listener)
-      }
-      return originalAddEventListener.call(window, type, listener, options)
-    } as any
-
-    let script: HTMLScriptElement | null = null
-
-    if ((window as any).FlutterwaveCheckout) {
-      setScriptLoaded(true)
-    } else {
-      script = document.createElement('script')
-      script.src = 'https://checkout.flutterwave.com/v3.js'
-      script.async = true
-      script.onload = () => setScriptLoaded(true)
-      document.body.appendChild(script)
-    }
-
-    return () => {
-      // Restore console methods
-      console.warn = originalConsoleWarn
-      console.error = originalConsoleError
-
-      // Restore standard addEventListener
-      window.addEventListener = originalAddEventListener
-
-      // Clean up all captured event listeners to completely prevent memory leaks
-      messageListeners.forEach((listener) => {
-        window.removeEventListener('message', listener)
-      })
-
-      // Clean up the script from the DOM
-      if (script && document.body.contains(script)) {
-        document.body.removeChild(script)
-      }
-    }
-  }, [])
-
-  const handleLivePaymentLaunch = () => {
-    if (!scriptLoaded || !(window as any).FlutterwaveCheckout) {
-      alert('Payment gateway is loading. Please wait a moment and try again.')
-      return
-    }
-
-    setIsPaying(true)
-
-    const customerName = `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
-    const orderItemsBreakdown = formatOrderItemsBreakdown(checkout.items)
-    const phoneNumber = formatPhoneNumber(checkout.shippingAddress.phone || checkout.momoNumber)
-    const uniqueTxRef = `${checkout._id}_${Date.now()}`
-
-      ; ;(window as any).FlutterwaveCheckout({
-        public_key: import.meta.env.VITE_FLW_PUBLIC_KEY || '',
-        tx_ref: uniqueTxRef,
-        amount: checkout.totalAmount || 0,
-        currency: checkout.currency || 'GHS',
-        payment_options: 'mobilemoneygh, card',
-        customer: {
-          email: checkout.email || '',
-          phone_number: phoneNumber,
-          name: customerName,
-        },
-        meta: {
-          order_items: orderItemsBreakdown,
-          checkoutId: checkout._id,
-        },
-        // Look for this section inside your handleLivePaymentLaunch function:
-        customizations: {
-          title: 'Baah Prosper Music',
-          description: 'Secure Payment for Digital Merch Order',
-        },
-        // 🟢 REPLACE YOUR ENTIRE OLD CALLBACK PROPERTY WITH THIS ONE:
-        callback: async (data: { transaction_id: string; tx_ref: string }) => {
-          try {
-            const orderItemsBreakdown = formatOrderItemsBreakdown(
-              checkout.items,
-            )
-            const customerName =
-              `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
-            const addressParts = [
-              checkout.shippingAddress.addressLine1,
-              checkout.shippingAddress.city,
-              checkout.shippingAddress.region,
-              checkout.shippingAddress.country
-            ].filter(Boolean)
-            const deliveryAddress = addressParts.join(', ')
-
-            await verifyPayment({
-              transactionId: data.transaction_id.toString(),
-              checkoutId: checkout._id,
-              customerName: customerName,
-              customerEmail: checkout.email || 'N/A',
-              phoneNumber:
-                formatPhoneNumber(checkout.shippingAddress.phone || checkout.momoNumber || 'N/A'),
-              deliveryInfo: deliveryAddress,
-              orderItemsBreakdown: orderItemsBreakdown,
-            })
-            setPaymentStep('success')
-          } catch (error) {
-            console.error('Payment verification failed:', error)
-            alert(
-              'Payment verification failed. Please contact business support.',
-            )
-          } finally {
-            setIsPaying(false)
-          }
-        },
-        onclose: () => {
-          setIsPaying(false)
-        },
-      })
-  }
-
-  if (!isMounted) {
-    return (
-      <div className="text-zinc-500 text-center py-10">
-        Syncing transaction data...
-      </div>
-    )
-  }
-
-  if (paymentStep === 'success') {
+  if (checkout.status === 'paid') {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-4 pb-20 pt-14 text-white">
         <section className="w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111] p-8 text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-            Success
+            Already Paid
           </p>
           <h1 className="mt-2 font-display text-3xl font-bold">
             Payment complete
           </h1>
           <p className="mt-2 text-sm text-gray-400">
-            Your transaction has processed successfully.
+            This order has already been paid for.
           </p>
           <PaymentSummary checkout={checkout} className="mt-8 text-left" />
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -373,6 +142,50 @@ function MoMoPaymentCheckout({
     )
   }
 
+  // ── Initiate redirect-based payment ─────────────────────────────────
+
+  const handlePayment = async () => {
+    setIsPaying(true)
+    setErrorMsg('')
+
+    try {
+      // Build the callback URL from the current origin
+      const origin =
+        typeof window !== 'undefined'
+          ? window.location.origin
+          : 'https://baah-prosper-music.vercel.app'
+      const redirectUrl = `${origin}/payment-callback`
+
+      const result = await initiatePayment({
+        checkoutId: checkoutId as Id<'checkouts'>,
+        redirectUrl,
+      })
+
+      if (result.alreadyPaid) {
+        // Checkout was already paid — refresh will show the "already paid" UI
+        window.location.reload()
+        return
+      }
+
+      if (result.link) {
+        // Redirect the browser to Flutterwave's hosted checkout page
+        window.location.href = result.link
+      } else {
+        setErrorMsg('Could not generate payment link. Please try again.')
+        setIsPaying(false)
+      }
+    } catch (error: any) {
+      console.error('Payment initiation failed:', error)
+      setErrorMsg(
+        error?.message ||
+          'Payment initiation failed. Please try again or contact support.',
+      )
+      setIsPaying(false)
+    }
+  }
+
+  // ── Review & Pay UI ─────────────────────────────────────────────────
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-black px-4 pb-20 pt-14 text-white">
       <section className="w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111] p-8">
@@ -392,24 +205,27 @@ function MoMoPaymentCheckout({
               Secure Payment Shield Enabled
             </span>
             <p className="mt-1 text-xs text-emerald-100/70">
-              Your payment information remains completely encrypted and is verified instantly.
+              You will be redirected to Flutterwave&apos;s secure checkout page
+              to complete your payment.
             </p>
           </div>
 
           <PaymentSummary checkout={checkout} />
 
+          {errorMsg && (
+            <div className="rounded-xl border border-red-900/40 bg-red-900/10 p-4 text-sm text-red-300">
+              {errorMsg}
+            </div>
+          )}
+
           <div className="space-y-3 pt-4">
             <button
               type="button"
-              disabled={isPaying || !scriptLoaded}
-              onClick={handleLivePaymentLaunch}
+              disabled={isPaying}
+              onClick={() => void handlePayment()}
               className="w-full rounded-xl bg-emerald-600 py-4 font-semibold text-white transition duration-200 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600"
             >
-              {isPaying
-                ? 'PROCESSING TRANSACTION...'
-                : scriptLoaded
-                  ? 'PAY SECURELY NOW'
-                  : 'LOADING GATEWAY...'}
+              {isPaying ? 'REDIRECTING TO PAYMENT...' : 'PAY SECURELY NOW'}
             </button>
 
             <button
@@ -426,6 +242,29 @@ function MoMoPaymentCheckout({
   )
 }
 
+// ── Shared summary component ────────────────────────────────────────
+
+type MoMoCheckout = {
+  _id: Id<'checkouts'>
+  email: string
+  momoNumber: string
+  paymentReference: string
+  totalAmount: number
+  currency?: string
+  status: string
+  paymentMethod: string
+  items?: CheckoutItemSummary[]
+  shippingAddress: {
+    firstName: string
+    lastName: string
+    phone: string
+    addressLine1: string
+    region: string
+    city: string
+    country: string
+  }
+}
+
 function PaymentSummary({
   checkout,
   className = '',
@@ -433,7 +272,8 @@ function PaymentSummary({
   checkout: MoMoCheckout
   className?: string
 }) {
-  const customerName = `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
+  const customerName =
+    `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
 
   return (
     <div className={`space-y-4 ${className}`}>
