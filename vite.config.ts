@@ -8,6 +8,8 @@ import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 const config = defineConfig({
   plugins: [
     devtools(),
@@ -19,12 +21,16 @@ const config = defineConfig({
         plugins: ['babel-plugin-react-compiler'],
       },
     }),
-    // Run after TanStack + React so SSR/router bundles are not pre-transformed inconsistently
-    nitro({
-      serverDir: './server',
-      rollupConfig: { external: [/^@sentry\//] },
+    cloudflare({
+      viteEnvironment: {
+        name: "ssr"
+      }
     }),
   ],
+  define: {
+    'process.env.VITE_CONVEX_URL': JSON.stringify(process.env.VITE_CONVEX_URL),
+    'process.env.CONVEX_DEPLOYMENT': JSON.stringify(process.env.CONVEX_DEPLOYMENT),
+  },
 })
 
 export default config
