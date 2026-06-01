@@ -86,9 +86,11 @@ function PaymentCallbackPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const verifyAttempted = useRef(false)
 
+  const fallbackTransactionId = transaction_id || tx_ref
+
   // Determine if payment was cancelled by the user
   const wasCancelled =
-    status === 'cancelled' || (!status && !transaction_id)
+    status === 'cancelled' || (!status && !fallbackTransactionId)
 
   useEffect(() => {
     if (wasCancelled) {
@@ -100,7 +102,7 @@ function PaymentCallbackPage() {
       verifyAttempted.current ||
       !checkout ||
       checkout.status === 'paid' ||
-      !transaction_id ||
+      !fallbackTransactionId ||
       status !== 'successful'
     ) {
       // If already paid, show success immediately
@@ -127,7 +129,7 @@ function PaymentCallbackPage() {
     )
 
     verifyPayment({
-      transactionId: transaction_id,
+      transactionId: fallbackTransactionId,
       checkoutId: checkoutId as Id<'checkouts'>,
       customerName,
       customerEmail: checkout.email || 'N/A',
@@ -147,7 +149,7 @@ function PaymentCallbackPage() {
       })
   }, [
     checkout,
-    transaction_id,
+    fallbackTransactionId,
     status,
     checkoutId,
     wasCancelled,
@@ -156,7 +158,20 @@ function PaymentCallbackPage() {
 
   // ── Loading states ──────────────────────────────────────────────────
 
-  if (!checkoutId || (!wasCancelled && checkout === undefined)) {
+  if (!checkoutId) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black px-4 pb-20 pt-14 text-white">
+        <section className="w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111] p-8 text-center">
+          <h1 className="text-2xl font-bold text-red-400">Invalid Request</h1>
+          <p className="mt-2 text-sm text-gray-400">
+            Invalid payment tracking parameters.
+          </p>
+        </section>
+      </main>
+    )
+  }
+
+  if (!wasCancelled && checkout === undefined) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4">
         <article className="p-8 text-center">
