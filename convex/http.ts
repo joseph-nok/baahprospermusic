@@ -28,12 +28,15 @@ http.route({
       return new Response('Invalid JSON', { status: 400 })
     }
 
-    // 3. Event Validation: Process only if event is "charge.completed" and status is "successful"
+    // 3. Event Validation: Process only if event is "charge.completed" or "MOBILEMONEYGH_TRANSACTION" and status is "successful" or "success"
     const event = payload['event.type'] || payload.event
     const status = payload.data?.status || payload.status
     const data = payload.data || payload
 
-    if (event === 'charge.completed' && status === 'successful') {
+    const isAllowedEvent = event === 'charge.completed' || event === 'MOBILEMONEYGH_TRANSACTION'
+    const isSuccessful = status === 'successful' || status === 'success'
+
+    if (isAllowedEvent && isSuccessful) {
       // 4. Data Extraction
       const amount = Number(data.amount)
       const currency = String(data.currency || 'GHS')
