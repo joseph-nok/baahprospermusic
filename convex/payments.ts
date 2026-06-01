@@ -19,7 +19,7 @@ export const processSuccessfulOrder = internalAction({
   },
   handler: async (ctx, args) => {
     // Initialize the official Convex Resend component
-    const resend = new Resend(components.resend)
+    const resend = new Resend(components.resend, { testMode: false })
 
     // Escape dynamic HTML parameters for security
     const escapeHtml = (val: string) =>
@@ -183,8 +183,8 @@ export const processSuccessfulOrder = internalAction({
 
     // Fire the completed order digest directly using the official Resend component
     await resend.sendEmail(ctx, {
-      from: 'sales@yourdomain.com',
-      to: 'yourinbox@company.com',
+      from: 'onboarding@resend.dev',
+      to: process.env.ORDER_NOTIFICATION_EMAIL || 'josephnok088@gmail.com',
       subject: `🔔 Order Receipt: ${formattedAmount} from ${args.customerName}`,
       html: emailHtml,
     })
