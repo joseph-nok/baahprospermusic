@@ -4,7 +4,7 @@
     "**/*.tsx",
     "eslint.config.js",
     "prettier.config.js",
-    "vite.config.js"
+    "vite.config.ts"
   ],
 
   "compilerOptions": {
@@ -17,12 +17,14 @@
       "@/*": ["./src/*"]
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
+    // 🔧 FIX 1: Explicitly include "node" types so 'process.env' maps perfectly
+    "types": ["node", "vite/client"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
+    // 🔧 FIX 2: Relax verbatim module syntax slightly to allow the pnpm symlink graph to resolve types
+    "verbatimModuleSyntax": false,
     "noEmit": true,
 
     /* Linting */
