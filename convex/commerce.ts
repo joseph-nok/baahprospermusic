@@ -110,14 +110,30 @@ type GenericMetadataRecord = {
   [key: string]: unknown
 }
 
+type PaystackInitializeResponse = {
+  status?: boolean
+  message?: string
+  data?: {
+    authorization_url?: string
+  }
+}
+
+type PaystackVerifyResponse = {
+  status?: boolean
+  message?: string
+  data?: {
+    status?: string
+    reference?: string
+    amount?: number
+    currency?: string
+  }
+}
+
 function getMetadataFieldValue(
   metadata: GenericMetadataRecord | undefined,
   variableName: string,
 ): string | null {
-  const directValue =
-    typeof metadata === 'object' && metadata !== null
-      ? metadata[variableName]
-      : undefined
+  const directValue = metadata?.[variableName]
 
   if (typeof directValue === 'string' && directValue.trim().length > 0) {
     return directValue
@@ -127,10 +143,7 @@ function getMetadataFieldValue(
     return String(directValue)
   }
 
-  const customFields =
-    typeof metadata === 'object' && metadata !== null
-      ? metadata.custom_fields
-      : undefined
+  const customFields = metadata?.custom_fields
 
   if (!Array.isArray(customFields)) {
     return null
@@ -544,10 +557,10 @@ export const getCheckoutInternal = internalQuery({
 })
 
 // =====================================================================
-// Redirect-based Flutterwave payment initiation (replaces inline popup)
+// Redirect-based Paystack payment initiation (Hosted Checkout)
 // =====================================================================
 
-export const initiateFlutterwaveRedirect = action({
+export const initiatePaystackPayment = action({
   args: {
     checkoutId: v.id('checkouts'),
     redirectUrl: v.string(),
@@ -560,15 +573,18 @@ export const initiateFlutterwaveRedirect = action({
 
     if (!checkout) throw new Error('Checkout not found.')
     if (checkout.status === 'paid') {
-      return { alreadyPaid: true, link: null as string | null }
+      return { alreadyPaid: true, authorization_url: null as string | null }
     }
 
-    const secretKey = process.env.FLW_SECRET_KEY
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
     if (!secretKey) {
       throw new Error(
         'Payment gateway is not configured. Please contact support.',
       )
     }
+
+    // CRITICAL: Paystack calculates money in pesewas — multiply GHS by 100
+    const amountInPesewas = Math.round(checkout.totalAmount * 100)
 
     const customerName =
       [checkout.shippingAddress.firstName, checkout.shippingAddress.lastName]
@@ -585,44 +601,58 @@ export const initiateFlutterwaveRedirect = action({
       })),
     )
 
-    const txRef = `${String(args.checkoutId)}_${Date.now()}`
+    // Use the Convex checkout _id as the Paystack reference
+    const reference = String(args.checkoutId)
 
-    const response = await fetch('https://api.flutterwave.com/v3/payments', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secretKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        tx_ref: txRef,
-        amount: checkout.totalAmount,
-        currency: checkout.currency || 'GHS',
-        redirect_url: args.redirectUrl,
-        customer: {
+    const response = await fetch(
+      'https://api.paystack.co/transaction/initialize',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           email: checkout.email || '',
-          phone_number:
-            checkout.shippingAddress.phone || checkout.momoNumber || '',
-          name: customerName,
-        },
-        meta: {
-          order_items: orderItemsBreakdown,
-          checkout_id: String(args.checkoutId),
-        },
-        customizations: {
-          title: 'Baah Prosper Music',
-          description: 'Secure Payment for Merch Order',
-        },
-        payment_options: 'mobilemoneyghana, card',
-      }),
-    })
+          amount: amountInPesewas,
+          currency: 'GHS',
+          reference,
+          channels: ['mobile_money'],
+          callback_url: args.redirectUrl,
+          metadata: {
+            customer_name: customerName,
+            phone_number:
+              checkout.shippingAddress.phone || checkout.momoNumber || '',
+            order_items: orderItemsBreakdown,
+            checkout_id: String(args.checkoutId),
+            custom_fields: [
+              {
+                display_name: 'Customer Name',
+                variable_name: 'customer_name',
+                value: customerName,
+              },
+              {
+                display_name: 'Phone Number',
+                variable_name: 'phone_number',
+                value:
+                  checkout.shippingAddress.phone || checkout.momoNumber || '',
+              },
+            ],
+          },
+        }),
+      },
+    )
 
-    const result: any = await response.json()
+    const result = (await response.json()) as PaystackInitializeResponse
 
-    if (result.status === 'success' && result.data?.link) {
-      return { alreadyPaid: false, link: result.data.link as string }
+    if (result.status === true && result.data?.authorization_url) {
+      return {
+        alreadyPaid: false,
+        authorization_url: result.data.authorization_url,
+      }
     }
 
-    console.error('[FLW REDIRECT] Initiation failed:', JSON.stringify(result))
+    console.error('[PAYSTACK] Initiation failed:', JSON.stringify(result))
     throw new Error(
       result.message || 'Could not initiate payment. Please try again.',
     )
@@ -630,59 +660,110 @@ export const initiateFlutterwaveRedirect = action({
 })
 
 // =====================================================================
-// Flutterwave payment verification (called from webhook & callback)
+// Paystack payment verification (fallback — webhook is the primary path)
 // =====================================================================
 
-export const verifyFlutterwavePayment = action({
+export const verifyPaystackPayment = action({
   args: {
-    transactionId: v.string(),
-    checkoutId: v.id('checkouts'),
-    customerName: v.string(),
-    customerEmail: v.string(),
-    phoneNumber: v.string(),
-    deliveryInfo: v.string(),
-    orderItemsBreakdown: v.string(),
+    reference: v.string(),
   },
   handler: async (ctx, args) => {
-    const paymentResult: any = await ctx.runMutation(
-      internal.commerce.completePaymentInternal,
-      { checkoutId: args.checkoutId }
-    )
+    // The Paystack reference is our Convex checkout _id
+    const checkoutId = args.reference as Id<'checkouts'>
 
-    if (paymentResult?.alreadyPaid) {
+    const checkout = await ctx.runQuery(internal.commerce.getCheckoutInternal, {
+      checkoutId,
+    })
+    if (!checkout) {
+      throw new Error('Checkout not found.')
+    }
+
+    if (checkout.status === 'paid') {
       return { success: true, alreadyPaid: true }
     }
 
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
+    if (!secretKey) {
+      throw new Error(
+        'Payment gateway is not configured. Please contact support.',
+      )
+    }
+
+    const response = await fetch(
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(
+        args.reference,
+      )}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+        },
+      },
+    )
+
+    const result = (await response.json()) as PaystackVerifyResponse
+    if (
+      !response.ok ||
+      result.status !== true ||
+      result.data?.status !== 'success'
+    ) {
+      console.error('[PAYSTACK VERIFY] Verification failed:', result)
+      throw new Error(
+        result.message ||
+          'Payment was not successful. Please try again or contact support.',
+      )
+    }
+
+    if (result.data.reference !== args.reference) {
+      throw new Error('Payment reference mismatch. Please contact support.')
+    }
+
+    const expectedAmount = Math.round(checkout.totalAmount * 100)
+    if (result.data.amount !== expectedAmount) {
+      throw new Error('Payment amount mismatch. Please contact support.')
+    }
+
+    const paymentResult = await ctx.runMutation(
+      internal.commerce.completePaymentInternal,
+      { checkoutId },
+    )
+
+    if (paymentResult.alreadyPaid) {
+      return { success: true, alreadyPaid: true }
+    }
+
+    // Send order notification email
     try {
-      const completedOrderPayload: any = {
-        checkoutId: args.checkoutId,
-        amount: formatGhsAmount(paymentResult?.totalAmount || 0),
-        customerEmail: args.customerEmail,
-        customerName: args.customerName,
-        deliveryInfo: args.deliveryInfo,
-        orderItemsBreakdown: args.orderItemsBreakdown,
-        phoneNumber: args.phoneNumber,
-        reference: args.transactionId,
-        orderNotificationEmailSentAt: Date.now(),
-      }
+      const orderData: OrderEmailData = await ctx.runQuery(
+        internal.commerce.getOrderEmailData,
+        { checkoutId },
+      )
 
-      const emailResult = await sendPaidOrderEmail(completedOrderPayload)
+      const emailResult = await sendPaidOrderEmail(orderData)
 
-      await ctx.runMutation(internal.commerce.recordOrderNotificationEmailStatus, {
-        checkoutId: args.checkoutId,
-        success: emailResult.success,
-        error: emailResult.error ?? undefined,
-      })
+      await ctx.runMutation(
+        internal.commerce.recordOrderNotificationEmailStatus,
+        {
+          checkoutId,
+          success: emailResult.success,
+          error: emailResult.error ?? undefined,
+        },
+      )
 
       return { success: true, alreadyPaid: false }
     } catch (error: any) {
-      console.error('Background pipeline error:', error)
-      await ctx.runMutation(internal.commerce.recordOrderNotificationEmailStatus, {
-        checkoutId: args.checkoutId,
-        success: false,
-        error: error.message || String(error),
-      })
-      throw new Error(`Payment verification notification crash: ${error.message}`)
+      console.error('[PAYSTACK VERIFY] Notification error:', error)
+      await ctx.runMutation(
+        internal.commerce.recordOrderNotificationEmailStatus,
+        {
+          checkoutId,
+          success: false,
+          error: error.message || String(error),
+        },
+      )
+      throw new Error(
+        `Payment verified but notification failed: ${error.message}`,
+      )
     }
   },
 })

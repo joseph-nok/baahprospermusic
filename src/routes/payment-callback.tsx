@@ -5,80 +5,37 @@ import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 
 type PaymentCallbackSearch = {
-  status: string
-  tx_ref: string
-  transaction_id: string
+  reference: string
+  trxref: string
+  cancelled: string
 }
 
 export const Route = createFileRoute('/payment-callback')({
   validateSearch: (
     search: Record<string, unknown>,
   ): PaymentCallbackSearch => ({
-    status: typeof search.status === 'string' ? search.status : '',
-    tx_ref: typeof search.tx_ref === 'string' ? search.tx_ref : '',
-    transaction_id:
-      typeof search.transaction_id === 'string'
-        ? search.transaction_id
-        : '',
+    reference:
+      typeof search.reference === 'string' ? search.reference : '',
+    trxref: typeof search.trxref === 'string' ? search.trxref : '',
+    cancelled:
+      typeof search.cancelled === 'string' ? search.cancelled : '',
   }),
   component: PaymentCallbackPage,
 })
 
-function formatPhoneNumber(num: string) {
-  if (!num) return num
-  const cleaned = num.trim()
-  if (cleaned.length === 9 && !cleaned.startsWith('0')) {
-    return '0' + cleaned
-  }
-  return cleaned
-}
-
-type CheckoutItemSummary = {
-  productName: string
-  quantity: number
-  color: string
-  size: string
-}
-
-function formatOrderItemsBreakdown(items: CheckoutItemSummary[] = []) {
-  if (!items.length) return 'N/A'
-
-  const headers = ['Qty', 'Item', 'Color', 'Size']
-  const rows = items.map((item) => [
-    `${item.quantity}x`,
-    item.productName.trim() || 'Merch',
-    item.color.trim() || 'N/A',
-    item.size.trim() || 'N/A',
-  ])
-
-  const colWidths = headers.map((header, i) =>
-    Math.max(header.length, ...rows.map((row) => row[i].length)),
-  )
-
-  const pad = (str: string, width: number) => str.padEnd(width, ' ')
-
-  const headerLine = `| ${headers.map((h, i) => pad(h, colWidths[i])).join(' | ')} |`
-  const separatorLine = `| ${colWidths.map((w) => '-'.repeat(w)).join(' | ')} |`
-  const rowLines = rows.map(
-    (row) => `| ${row.map((val, i) => pad(val, colWidths[i])).join(' | ')} |`,
-  )
-
-  return [headerLine, separatorLine, ...rowLines].join('\n')
-}
-
 function PaymentCallbackPage() {
   const navigate = useNavigate()
   const convexApi = api as any
-  const { status, tx_ref, transaction_id } = Route.useSearch()
+  const { reference, trxref, cancelled } = Route.useSearch()
 
-  // Extract the checkoutId from the tx_ref (format: checkoutId_timestamp)
-  const checkoutId = tx_ref ? tx_ref.split('_').slice(0, -1).join('_') : ''
+  // Paystack returns reference= or trxref= — both contain our Convex checkout _id
+  const checkoutId = reference || trxref || ''
 
   const checkout = useQuery(
     convexApi.commerce.getCheckout,
     checkoutId ? { checkoutId: checkoutId as Id<'checkouts'> } : 'skip',
   )
-  const verifyPayment = useAction(convexApi.commerce.verifyFlutterwavePayment)
+  const verifyPayment = useAction(convexApi.commerce.verifyPaystackPayment)
 
   const [verifyState, setVerifyState] = useState<
     'idle' | 'verifying' | 'success' | 'failed' | 'cancelled'
@@ -86,11 +43,7 @@ function PaymentCallbackPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const verifyAttempted = useRef(false)
 
-  const fallbackTransactionId = transaction_id || tx_ref
-
-  // Determine if payment was cancelled by the user
-  const wasCancelled =
-    status === 'cancelled' || (!status && !fallbackTransactionId)
+  const wasCancelled = cancelled === 'true'
 
   useEffect(() => {
     if (wasCancelled) {
@@ -98,46 +51,26 @@ function PaymentCallbackPage() {
       return
     }
 
-    if (
-      verifyAttempted.current ||
-      !checkout ||
-      checkout.status === 'paid' ||
-      !fallbackTransactionId ||
-      status !== 'successful'
-    ) {
-      // If already paid, show success immediately
-      if (checkout?.status === 'paid') {
-        setVerifyState('success')
-      }
+    // If already paid (webhook already processed), show success
+    if (checkout?.status === 'paid') {
+      setVerifyState('success')
       return
     }
 
+    if (
+      verifyAttempted.current ||
+      !checkout ||
+      !checkoutId
+    ) {
+      return
+    }
+
+    // Attempt verification as a fallback (webhook is primary)
     verifyAttempted.current = true
     setVerifyState('verifying')
 
-    const customerName =
-      `${checkout.shippingAddress.firstName} ${checkout.shippingAddress.lastName}`.trim()
-    const addressParts = [
-      checkout.shippingAddress.addressLine1,
-      checkout.shippingAddress.city,
-      checkout.shippingAddress.region,
-      checkout.shippingAddress.country,
-    ].filter(Boolean)
-    const deliveryAddress = addressParts.join(', ')
-    const orderItemsBreakdown = formatOrderItemsBreakdown(
-      checkout.items || [],
-    )
-
     verifyPayment({
-      transactionId: fallbackTransactionId,
-      checkoutId: checkoutId as Id<'checkouts'>,
-      customerName,
-      customerEmail: checkout.email || 'N/A',
-      phoneNumber: formatPhoneNumber(
-        checkout.shippingAddress.phone || checkout.momoNumber || 'N/A',
-      ),
-      deliveryInfo: deliveryAddress,
-      orderItemsBreakdown,
+      reference: checkoutId,
     })
       .then(() => setVerifyState('success'))
       .catch((err: any) => {
@@ -149,8 +82,6 @@ function PaymentCallbackPage() {
       })
   }, [
     checkout,
-    fallbackTransactionId,
-    status,
     checkoutId,
     wasCancelled,
     verifyPayment,
@@ -158,7 +89,7 @@ function PaymentCallbackPage() {
 
   // ── Loading states ──────────────────────────────────────────────────
 
-  if (!checkoutId) {
+  if (!checkoutId && !wasCancelled) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-4 pb-20 pt-14 text-white">
         <section className="w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111] p-8 text-center">
@@ -214,20 +145,19 @@ function PaymentCallbackPage() {
               type="button"
               onClick={() =>
                 void navigate({
-                  to: '/momo-payment',
-                  search: { checkoutId },
+                  to: '/cart',
                 })
               }
               className="rounded-xl bg-emerald-600 py-4 font-semibold text-white transition hover:bg-emerald-500"
             >
-              Try Again
+              Back to Cart
             </button>
             <button
               type="button"
-              onClick={() => void navigate({ to: '/cart' })}
+              onClick={() => void navigate({ to: '/market' })}
               className="rounded-xl bg-zinc-800 py-4 font-semibold text-white transition hover:bg-zinc-700"
             >
-              Back to Cart
+              Continue Shopping
             </button>
           </div>
         </section>

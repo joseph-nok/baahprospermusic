@@ -6,7 +6,7 @@ import { components } from './_generated/api'
 import { v } from 'convex/values'
 
 /**
- * Process a successful Flutterwave payment and send a premium HTML receipt to the business inbox.
+ * Process a successful Paystack payment and send a premium HTML receipt to the business inbox.
  */
 export const processSuccessfulOrder = internalAction({
   args: {

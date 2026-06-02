@@ -42,7 +42,7 @@ function MoMoPaymentPage() {
     checkoutId ? { checkoutId: checkoutId as Id<'checkouts'> } : 'skip',
   )
   const initiatePayment = useAction(
-    convexApi.commerce.initiateFlutterwaveRedirect,
+    convexApi.commerce.initiatePaystackPayment,
   )
 
   const [isPaying, setIsPaying] = useState(false)
@@ -167,9 +167,9 @@ function MoMoPaymentPage() {
         return
       }
 
-      if (result.link) {
-        // Redirect the browser to Flutterwave's hosted checkout page
-        window.location.href = result.link
+      if (result.authorization_url) {
+        // Redirect the browser to Paystack's hosted checkout page
+        window.location.href = result.authorization_url
       } else {
         setErrorMsg('Could not generate payment link. Please try again.')
         setIsPaying(false)
@@ -196,7 +196,7 @@ function MoMoPaymentPage() {
           Complete payment
         </h1>
         <p className="mt-2 text-sm text-gray-400">
-          Review details and secure your purchase through Flutterwave.
+          Review details and secure your purchase through Paystack.
         </p>
 
         <article className="mt-8 space-y-6">
@@ -205,8 +205,8 @@ function MoMoPaymentPage() {
               Secure Payment Shield Enabled
             </span>
             <p className="mt-1 text-xs text-emerald-100/70">
-              You will be redirected to Flutterwave&apos;s secure checkout page
-              to complete your payment.
+              You will be redirected to Paystack&apos;s secure checkout page to
+              complete your payment.
             </p>
           </div>
 

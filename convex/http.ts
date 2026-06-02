@@ -4,85 +4,107 @@ import { internal } from './_generated/api'
 
 const http = httpRouter()
 
+// =====================================================================
+// HMAC SHA-512 signature verification using Web Crypto API
+// (Convex default runtime — no Node.js 'crypto' available here)
+// =====================================================================
+
+async function verifyPaystackSignature(
+  body: string,
+  signature: string,
+  secret: string,
+): Promise<boolean> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-512' },
+    false,
+    ['sign'],
+  )
+  const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(body))
+  const hashHex = Array.from(new Uint8Array(mac))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return hashHex === signature
+}
+
+// =====================================================================
+// Paystack Webhook — handles charge.success events
+// =====================================================================
+
 http.route({
-  path: '/flutterwave-webhook',
+  path: '/paystack-webhook',
   method: 'POST',
   handler: httpAction(async (ctx, request) => {
-    // 1. Security Check: Read the 'verif-hash' header sent by Flutterwave
-    const signature = request.headers.get('verif-hash')
-    const secretHash = process.env.FLW_SECRET_HASH
+    // 1. Security: Verify the x-paystack-signature header
+    const signature = request.headers.get('x-paystack-signature')
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
 
-    if (!secretHash || !signature || signature !== secretHash) {
+    if (!secretKey || !signature) {
       console.error(
-        '[FLUTTERWAVE WEBHOOK] Signature verification failed or missing.',
+        '[PAYSTACK WEBHOOK] Missing secret key or signature header.',
       )
       return new Response('Unauthorized', { status: 401 })
     }
 
-    // 2. Parse the request payload
-    let payload
+    const rawBody = await request.text()
+
+    const isValid = await verifyPaystackSignature(rawBody, signature, secretKey)
+    if (!isValid) {
+      console.error('[PAYSTACK WEBHOOK] HMAC signature verification failed.')
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    // 2. Parse the verified payload
+    let payload: any
     try {
-      payload = await request.json()
+      payload = JSON.parse(rawBody)
     } catch (error) {
-      console.error('[FLUTTERWAVE WEBHOOK] Failed to parse JSON body:', error)
+      console.error('[PAYSTACK WEBHOOK] Failed to parse JSON body:', error)
       return new Response('Invalid JSON', { status: 400 })
     }
 
-    // 3. Event Validation: Process only if event is "charge.completed" or "MOBILEMONEYGH_TRANSACTION" and status is "successful" or "success"
-    const event = payload['event.type'] || payload.event
-    const status = payload.data?.status || payload.status
-    const data = payload.data || payload
-
-    const isAllowedEvent = event === 'charge.completed' || event === 'MOBILEMONEYGH_TRANSACTION'
-    const isSuccessful = status === 'successful' || status === 'success'
-
-    if (isAllowedEvent && isSuccessful) {
-      // 4. Data Extraction
-      const amount = Number(data.amount)
-      const currency = String(data.currency || 'GHS')
-      const customerName = String(data.customer?.name || 'Customer')
-      const customerEmail = String(data.customer?.email || '')
-
-      // Safely extract the itemized string from metadata
+    // 3. Only process charge.success events
+    const event = payload.event
+    if (event === 'charge.success') {
+      // data.reference is our Convex checkout _id
+      const reference = String(payload.data?.reference || '')
+      const amount = Number(payload.data?.amount || 0) / 100 // pesewas → GHS
+      const currency = String(payload.data?.currency || 'GHS')
+      const customerEmail = String(payload.data?.customer?.email || '')
+      const customerName = String(
+        payload.data?.metadata?.customer_name ||
+          payload.data?.customer?.first_name ||
+          'Customer',
+      )
       const orderItems = String(
-        data.meta?.order_items || 'No order details provided',
+        payload.data?.metadata?.order_items || 'No order details provided',
       )
-
-      // Extract transaction ID for the receipt
-      const transactionId = String(
-        data.tx_ref || data.flw_ref || data.id || 'N/A',
-      )
-
-      // Extract checkout ID from reference or metadata
-      const reference = String(data.tx_ref || '')
-      const checkoutId = (
-        data.meta?.checkout_id ||
-        reference.split('_')[0] ||
-        ''
-      ).trim()
+      const transactionId = String(payload.data?.id || reference)
 
       console.log(
-        `[FLUTTERWAVE WEBHOOK] Processing successful order: ${transactionId} - ${customerName} (${currency} ${amount})`,
+        `[PAYSTACK WEBHOOK] Processing charge.success: ref=${reference} — ${customerName} (${currency} ${amount})`,
       )
 
-      // 4b. Update checkout status in database to 'paid'
-      if (checkoutId) {
+      // 4. Mark checkout as paid in the Convex database
+      if (reference) {
         try {
           await ctx.runMutation(internal.commerce.completePaymentInternal, {
-            checkoutId: checkoutId,
+            checkoutId: reference as any,
           })
           console.log(
-            `[FLUTTERWAVE WEBHOOK] Marked checkout ${checkoutId} as PAID.`,
+            `[PAYSTACK WEBHOOK] Marked checkout ${reference} as PAID.`,
           )
         } catch (dbError) {
           console.error(
-            `[FLUTTERWAVE WEBHOOK] Failed to update checkout database status:`,
+            `[PAYSTACK WEBHOOK] Failed to update checkout status:`,
             dbError,
           )
         }
       }
 
-      // 5. Pass all clean data to the internal payments process action
+      // 5. Send order notification email via internal action
       try {
         await ctx.runAction(internal.payments.processSuccessfulOrder, {
           amount,
@@ -94,18 +116,16 @@ http.route({
         })
       } catch (actionError) {
         console.error(
-          '[FLUTTERWAVE WEBHOOK] Failed to run internal process action:',
+          '[PAYSTACK WEBHOOK] Failed to run email notification action:',
           actionError,
         )
-        // We still return 200 to prevent retries if the webhook payload itself was valid
+        // Still return 200 — the payment was processed successfully
       }
     } else {
-      console.log(
-        `[FLUTTERWAVE WEBHOOK] Ignored event: ${event}, status: ${status}`,
-      )
+      console.log(`[PAYSTACK WEBHOOK] Ignored event: ${event}`)
     }
 
-    // 6. Return HTTP 200 OK response instantly to prevent retries
+    // 6. Always return 200 to Paystack to prevent retries
     return new Response(JSON.stringify({ status: 'success' }), {
       status: 200,
       headers: {
