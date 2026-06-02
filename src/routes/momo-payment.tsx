@@ -167,9 +167,11 @@ function MoMoPaymentPage() {
         return
       }
 
-      if (result.authorization_url) {
+      const paymentUrl = result.url || result.authorization_url
+
+      if (paymentUrl) {
         // Redirect the browser to Paystack's hosted checkout page
-        window.location.href = result.authorization_url
+        window.location.href = paymentUrl
       } else {
         setErrorMsg('Could not generate payment link. Please try again.')
         setIsPaying(false)

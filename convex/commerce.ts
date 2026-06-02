@@ -573,7 +573,11 @@ export const initiatePaystackPayment = action({
 
     if (!checkout) throw new Error('Checkout not found.')
     if (checkout.status === 'paid') {
-      return { alreadyPaid: true, authorization_url: null as string | null }
+      return {
+        alreadyPaid: true,
+        authorization_url: null as string | null,
+        url: null as string | null,
+      }
     }
 
     const secretKey = process.env.PAYSTACK_SECRET_KEY
@@ -649,6 +653,7 @@ export const initiatePaystackPayment = action({
       return {
         alreadyPaid: false,
         authorization_url: result.data.authorization_url,
+        url: result.data.authorization_url,
       }
     }
 
