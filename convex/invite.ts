@@ -95,7 +95,7 @@ export const sendInviteEmail = action({
       },
       body: JSON.stringify({
         from: `Baah Prosper Music <${fromEmail}>`,
-        to: 'josephnok088@gmail.com', // Sends safely to your verified account
+        to: 'prosperbaah58@gmail.com', // Sends safely to your verified account
         reply_to: args.email, // Captures the user's email so you can reply instantly
         subject: `Invite: ${args.name}`,
         html: notificationHtml,
