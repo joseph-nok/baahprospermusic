@@ -184,7 +184,7 @@ export const processSuccessfulOrder = internalAction({
     // Fire the completed order digest directly using the official Resend component
     await resend.sendEmail(ctx, {
       from: 'onboarding@resend.dev',
-      to: process.env.ORDER_NOTIFICATION_EMAIL || 'josephnok088@gmail.com',
+      to: process.env.ORDER_NOTIFICATION_EMAIL || 'prosperbaah58@gmail.com',
       subject: `🔔 Order Receipt: ${formattedAmount} from ${args.customerName}`,
       html: emailHtml,
     })

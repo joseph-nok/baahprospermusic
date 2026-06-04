@@ -45,7 +45,7 @@ interface MetadataComponentProps {
 }
 
 const exampleCheckout: CheckoutInput = {
-  email: 'josephnok088@gmail.com',
+  email: 'prosperbaah58@gmail.com',
   amountGhs: 255,
   customerName: 'Osei Kwaku',
   phone: '+233246304690',

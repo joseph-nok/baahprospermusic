@@ -259,7 +259,7 @@ async function sendPaidOrderEmail(order: OrderEmailData) {
   }
 
   const toEmail =
-    process.env.ORDER_NOTIFICATION_EMAIL || 'josephnok088@gmail.com'
+    process.env.ORDER_NOTIFICATION_EMAIL || 'prosperbaah58@gmail.com'
   const fromEmail =
     process.env.ORDER_NOTIFICATION_FROM ||
     'Orders <orders@onboarding@resend.dev>'
@@ -514,7 +514,7 @@ export const getOrderEmailData = internalQuery({
 
     const metadataFallback =
       typeof args.metadataFallback === 'object' &&
-      args.metadataFallback !== null
+        args.metadataFallback !== null
         ? (args.metadataFallback as GenericMetadataRecord)
         : undefined
     const orderItemsBreakdown = resolveOrderItemsBreakdown(
@@ -715,7 +715,7 @@ export const verifyPaystackPayment = action({
       console.error('[PAYSTACK VERIFY] Verification failed:', result)
       throw new Error(
         result.message ||
-          'Payment was not successful. Please try again or contact support.',
+        'Payment was not successful. Please try again or contact support.',
       )
     }
 
