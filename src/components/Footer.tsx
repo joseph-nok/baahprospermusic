@@ -64,7 +64,7 @@ export default function Footer() {
             </p>
             <p className="site-footer__contact-item">
               <MapPin size={14} />
-              <span>Suyani-Fiapre, Ghana</span>
+              <span>Suyani, Ghana</span>
             </p>
           </div>
         </div>
