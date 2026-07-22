@@ -1,0 +1,774 @@
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from './_generated/server'
+import { internal } from './_generated/api'
+import { v } from 'convex/values'
+import type { Id } from './_generated/dataModel'
+
+const productLineValidator = v.union(v.literal('merch'), v.literal('cap'))
+const sizeValidator = v.union(
+  v.literal('M'),
+  v.literal('L'),
+  v.literal('XL'),
+  v.literal('XXL'),
+  v.literal('XXXL'),
+)
+const colorValidator = v.union(
+  v.literal('Black'),
+  v.literal('White'),
+  v.literal('black'),
+  v.literal('red'),
+  v.literal('white'),
+  v.literal('yellow'),
+  v.literal('blue'),
+)
+
+const checkoutLineValidator = v.object({
+  productLine: productLineValidator,
+  productId: v.id('marketProducts'),
+  quantity: v.number(),
+  color: colorValidator,
+  size: sizeValidator,
+})
+
+type ProductLine = 'merch' | 'cap'
+
+type OrderEmailData = {
+  checkoutId: Id<'checkouts'>
+  amount: string
+  customerEmail: string
+  customerName: string
+  deliveryInfo: string
+  orderItemsBreakdown: string
+  phoneNumber: string
+  reference: string
+  orderNotificationEmailSentAt: number | null
+}
+
+type OrderItemSummary = {
+  productName: string
+  quantity: number
+  color: string
+  size: string
+}
+
+function normalizeQuantity(quantity: number) {
+  if (!Number.isFinite(quantity)) {
+    throw new Error('Quantity must be a finite number.')
+  }
+  const normalized = Math.floor(quantity)
+  if (normalized < 1) throw new Error('Quantity must be at least 1.')
+  return normalized
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function formatGhsAmount(amount: number) {
+  if (!Number.isFinite(amount)) return '0.00'
+  return amount.toFixed(2)
+}
+
+function formatOrderItemsBreakdown(items: OrderItemSummary[]) {
+  if (!items.length) return 'N/A'
+
+  const headers = ['Qty', 'Item', 'Color', 'Size']
+  const rows = items.map((item) => [
+    `${item.quantity}x`,
+    item.productName.trim() || 'Merch',
+    item.color.trim() || 'N/A',
+    item.size.trim() || 'N/A',
+  ])
+
+  const colWidths = headers.map((header, i) =>
+    Math.max(header.length, ...rows.map((row) => row[i].length)),
+  )
+
+  const pad = (str: string, width: number) => str.padEnd(width, ' ')
+
+  const headerLine = `| ${headers.map((h, i) => pad(h, colWidths[i])).join(' | ')} |`
+  const separatorLine = `| ${colWidths.map((w) => '-'.repeat(w)).join(' | ')} |`
+  const rowLines = rows.map(
+    (row) => `| ${row.map((val, i) => pad(val, colWidths[i])).join(' | ')} |`,
+  )
+
+  return [headerLine, separatorLine, ...rowLines].join('\n')
+}
+
+type GenericMetadataRecord = {
+  custom_fields?: unknown
+  [key: string]: unknown
+}
+
+type PaystackInitializeResponse = {
+  status?: boolean
+  message?: string
+  data?: {
+    authorization_url?: string
+  }
+}
+
+type PaystackVerifyResponse = {
+  status?: boolean
+  message?: string
+  data?: {
+    status?: string
+    reference?: string
+    amount?: number
+    currency?: string
+  }
+}
+
+function getMetadataFieldValue(
+  metadata: GenericMetadataRecord | undefined,
+  variableName: string,
+): string | null {
+  const directValue = metadata?.[variableName]
+
+  if (typeof directValue === 'string' && directValue.trim().length > 0) {
+    return directValue
+  }
+
+  if (typeof directValue === 'number' || typeof directValue === 'boolean') {
+    return String(directValue)
+  }
+
+  const customFields = metadata?.custom_fields
+
+  if (!Array.isArray(customFields)) {
+    return null
+  }
+
+  const field = customFields.find(
+    (item) =>
+      typeof item === 'object' &&
+      item !== null &&
+      'variable_name' in item &&
+      item.variable_name === variableName,
+  ) as { value?: unknown } | undefined
+
+  if (typeof field?.value === 'string' && field.value.trim().length > 0) {
+    return field.value
+  }
+
+  if (typeof field?.value === 'number' || typeof field?.value === 'boolean') {
+    return String(field.value)
+  }
+
+  return null
+}
+
+function resolveOrderItemsBreakdown(
+  items: OrderItemSummary[],
+  metadata?: GenericMetadataRecord,
+): string {
+  if (items.length) {
+    return formatOrderItemsBreakdown(items)
+  }
+
+  return getMetadataFieldValue(metadata, 'order_items_breakdown') ?? 'N/A'
+}
+
+function buildOrderEmailHtml({
+  amount,
+  customerEmail,
+  customerName,
+  deliveryInfo,
+  orderItemsBreakdown,
+  phoneNumber,
+  reference,
+}: Omit<OrderEmailData, 'checkoutId' | 'orderNotificationEmailSentAt'>) {
+  const rows = [
+    ['Customer name', customerName],
+    ['Customer email', customerEmail],
+    ['Phone number', phoneNumber],
+    ['Payment reference', reference],
+    ['Amount paid', `GHS ${amount}`],
+  ]
+
+  const tableRows = rows
+    .map(
+      ([label, value]) => `
+        <tr>
+          <td style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb; color: #475569; font-size: 14px; font-weight: 700; width: 38%;">${escapeHtml(label)}</td>
+          <td style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb; color: #111827; font-size: 14px;">${escapeHtml(value)}</td>
+        </tr>
+      `,
+    )
+    .join('')
+
+  return `
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>New Order Notification</title>
+      </head>
+      <body style="margin: 0; padding: 0; background: #f8fafc; font-family: Arial, Helvetica, sans-serif; color: #111827;">
+        <div style="display: none; max-height: 0; overflow: hidden; opacity: 0;">
+          New paid order from ${escapeHtml(customerName)} for GHS ${escapeHtml(amount)}.
+        </div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: #f8fafc; padding: 28px 12px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 680px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                <tr>
+                  <td style="background: #111827; padding: 26px 28px;">
+                    <p style="margin: 0 0 8px; color: #cbd5e1; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;">Paid order received</p>
+                    <h1 style="margin: 0; color: #ffffff; font-size: 26px; line-height: 1.25;">GHS ${escapeHtml(amount)} from ${escapeHtml(customerName)}</h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 26px 28px;">
+                    <h2 style="margin: 0 0 14px; color: #111827; font-size: 18px; line-height: 1.35;">Order overview</h2>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border: 1px solid #e5e7eb; border-radius: 8px; border-collapse: separate; border-spacing: 0; overflow: hidden;">
+                      ${tableRows}
+                    </table>
+
+                    <h2 style="margin: 28px 0 12px; color: #111827; font-size: 18px; line-height: 1.35;">Delivery information</h2>
+                    <div style="white-space: pre-wrap; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; color: #111827; font-size: 14px; line-height: 1.65;">${escapeHtml(deliveryInfo)}</div>
+
+                    <h2 style="margin: 28px 0 12px; color: #111827; font-size: 18px; line-height: 1.35;">Order items</h2>
+                    <div style="white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; color: #111827; font-size: 14px; line-height: 1.65;">${escapeHtml(orderItemsBreakdown)}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `
+}
+
+async function sendPaidOrderEmail(order: OrderEmailData) {
+  const resendApiKey = process.env.RESEND_API_KEY
+  if (!resendApiKey) {
+    return { success: false, error: 'RESEND_API_KEY is not configured' }
+  }
+
+  const toEmail =
+    process.env.ORDER_NOTIFICATION_EMAIL || 'prosperbaah58@gmail.com'
+  const fromEmail =
+    process.env.ORDER_NOTIFICATION_FROM ||
+    'Orders <orders@onboarding@resend.dev>'
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${resendApiKey}`,
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: toEmail
+        .split(',')
+        .map((email) => email.trim())
+        .filter(Boolean),
+      subject: `New Order: GHS ${order.amount} from ${order.customerName}`,
+      html: buildOrderEmailHtml(order),
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    return { success: false, error: `[${response.status}] ${errorText}` }
+  }
+
+  return { success: true, error: null }
+}
+
+export const startCheckout = mutation({
+  args: {
+    cartId: v.optional(v.id('carts')),
+    items: v.array(checkoutLineValidator),
+    email: v.string(),
+    momoNumber: v.string(),
+    shippingAddress: v.object({
+      country: v.string(),
+      firstName: v.string(),
+      lastName: v.string(),
+      phone: v.string(),
+      addressLine1: v.string(),
+      region: v.string(),
+      city: v.string(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    if (args.items.length === 0) throw new Error('Cart is empty.')
+
+    // Fetch the upcoming event for payment reference
+    const upcomingEvent = await ctx.db
+      .query('events')
+      .withIndex('by_isPublished', (q) => q.eq('isPublished', true))
+      .order('asc')
+      .first()
+
+    const eventTitle = upcomingEvent?.title || 'Your Event'
+
+    let totalAmount = 0
+    const checkoutItems: Array<{
+      productLine: ProductLine
+      marketProductId: Id<'marketProducts'>
+      productName: string
+      productImage: string
+      currency: string
+      quantity: number
+      color: 'Black' | 'White' | 'black' | 'red' | 'white' | 'yellow' | 'blue'
+      size: 'M' | 'L' | 'XL' | 'XXL' | 'XXXL'
+      unitPrice: number
+      lineTotal: number
+    }> = []
+
+    for (const item of args.items) {
+      const quantity = normalizeQuantity(item.quantity)
+      const product = await ctx.db.get(item.productId)
+      if (!product || product.productLine !== item.productLine)
+        throw new Error('One or more products are unavailable.')
+      const lineTotal = quantity * product.price
+      totalAmount += lineTotal
+      checkoutItems.push({
+        productLine: product.productLine,
+        marketProductId: product._id,
+        productName: product.name,
+        productImage: product.image,
+        currency: product.currency || 'GHS',
+        quantity,
+        color: item.color,
+        size: item.size,
+        unitPrice: product.price,
+        lineTotal,
+      })
+    }
+
+    // Generate payment reference from event
+    const generatedPaymentReference = `Purchase for ${eventTitle} ministry`
+
+    const checkoutId = await ctx.db.insert('checkouts', {
+      cartId: args.cartId,
+      eventId: upcomingEvent?._id,
+      status: 'pending',
+      paymentMethod: 'MoMo',
+      paymentReference: generatedPaymentReference,
+      email: args.email.trim().toLowerCase(),
+      momoNumber: args.momoNumber.trim(),
+      currency: 'GHS',
+      totalAmount,
+      shippingAddress: args.shippingAddress,
+    })
+
+    for (const item of checkoutItems) {
+      await ctx.db.insert('checkoutItems', {
+        checkoutId,
+        productLine: item.productLine,
+        marketProductId: item.marketProductId,
+        productName: item.productName,
+        productImage: item.productImage,
+        currency: item.currency,
+        quantity: item.quantity,
+        color: item.color,
+        size: item.size,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+      })
+
+      // Decrement product stock and set inStock to false if stock reaches 0
+      const product = await ctx.db.get(item.marketProductId)
+      if (product) {
+        const remaining = product.stockQuantity - item.quantity
+        await ctx.db.patch(item.marketProductId, {
+          stockQuantity: remaining,
+          inStock: remaining > 0,
+        })
+      }
+    }
+
+    if (args.cartId) {
+      const cart = await ctx.db.get(args.cartId)
+      if (cart) await ctx.db.patch(args.cartId, { status: 'converted' })
+    }
+
+    return {
+      checkoutId,
+      totalAmount,
+      paymentMethod: 'MoMo',
+      paymentReference: generatedPaymentReference,
+      eventTitle,
+    }
+  },
+})
+
+export const getCheckout = query({
+  args: {
+    checkoutId: v.id('checkouts'),
+  },
+  handler: async (ctx, args) => {
+    const checkout = await ctx.db.get(args.checkoutId)
+    if (!checkout) {
+      return null
+    }
+
+    const items = await ctx.db
+      .query('checkoutItems')
+      .withIndex('by_checkoutId', (q) => q.eq('checkoutId', args.checkoutId))
+      .collect()
+
+    return { ...checkout, items }
+  },
+})
+
+export const completeTestPayment = mutation({
+  args: {
+    checkoutId: v.id('checkouts'),
+  },
+  handler: async (ctx, args) => {
+    const checkout = await ctx.db.get(args.checkoutId)
+    if (!checkout) {
+      throw new Error('Checkout not found.')
+    }
+    if (checkout.status === 'paid') {
+      return { checkoutId: args.checkoutId, status: 'paid' as const }
+    }
+    await ctx.db.patch(args.checkoutId, { status: 'paid' })
+    return { checkoutId: args.checkoutId, status: 'paid' as const }
+  },
+})
+
+export const completePaymentInternal = internalMutation({
+  args: { checkoutId: v.id('checkouts') },
+  handler: async (ctx, args) => {
+    const checkout = await ctx.db.get(args.checkoutId)
+    if (!checkout) {
+      throw new Error('Checkout not found.')
+    }
+    if (checkout.status === 'paid') {
+      return { alreadyPaid: true, totalAmount: checkout.totalAmount }
+    }
+    await ctx.db.patch(args.checkoutId, { status: 'paid' })
+    return { alreadyPaid: false, totalAmount: checkout.totalAmount }
+  },
+})
+
+export const recordOrderNotificationEmailStatus = internalMutation({
+  args: {
+    checkoutId: v.id('checkouts'),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (args.success) {
+      await ctx.db.patch(args.checkoutId, {
+        orderNotificationEmailSentAt: Date.now(),
+        orderNotificationEmailError: '',
+      })
+      return
+    }
+
+    await ctx.db.patch(args.checkoutId, {
+      orderNotificationEmailError: args.error || 'Unknown email error',
+    })
+  },
+})
+
+export const getOrderEmailData = internalQuery({
+  args: {
+    checkoutId: v.id('checkouts'),
+    metadataFallback: v.optional(v.any()),
+  },
+  handler: async (ctx, args): Promise<OrderEmailData> => {
+    const checkout = await ctx.db.get(args.checkoutId)
+    if (!checkout) {
+      throw new Error('Checkout not found.')
+    }
+
+    const items = await ctx.db
+      .query('checkoutItems')
+      .withIndex('by_checkoutId', (q) => q.eq('checkoutId', args.checkoutId))
+      .collect()
+
+    const customerName =
+      [checkout.shippingAddress.firstName, checkout.shippingAddress.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Customer'
+
+    const deliveryInfo = [
+      customerName,
+      checkout.shippingAddress.addressLine1,
+      `${checkout.shippingAddress.city}, ${checkout.shippingAddress.region}`,
+      checkout.shippingAddress.country,
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const metadataFallback =
+      typeof args.metadataFallback === 'object' &&
+        args.metadataFallback !== null
+        ? (args.metadataFallback as GenericMetadataRecord)
+        : undefined
+    const orderItemsBreakdown = resolveOrderItemsBreakdown(
+      items,
+      metadataFallback,
+    )
+
+    return {
+      checkoutId: checkout._id,
+      amount: formatGhsAmount(checkout.totalAmount),
+      customerEmail: checkout.email,
+      customerName,
+      deliveryInfo,
+      orderItemsBreakdown,
+      phoneNumber: checkout.shippingAddress.phone || checkout.momoNumber,
+      reference: checkout.paymentReference,
+      orderNotificationEmailSentAt:
+        checkout.orderNotificationEmailSentAt ?? null,
+    }
+  },
+})
+
+// =====================================================================
+// Internal helper query used by actions to read checkout + items
+// =====================================================================
+
+export const getCheckoutInternal = internalQuery({
+  args: { checkoutId: v.id('checkouts') },
+  handler: async (ctx, args) => {
+    const checkout = await ctx.db.get(args.checkoutId)
+    if (!checkout) return null
+
+    const items = await ctx.db
+      .query('checkoutItems')
+      .withIndex('by_checkoutId', (q) => q.eq('checkoutId', args.checkoutId))
+      .collect()
+
+    return { ...checkout, items }
+  },
+})
+
+// =====================================================================
+// Redirect-based Paystack payment initiation (Hosted Checkout)
+// =====================================================================
+
+export const initiatePaystackPayment = action({
+  args: {
+    checkoutId: v.id('checkouts'),
+    redirectUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const checkout: any = await ctx.runQuery(
+      internal.commerce.getCheckoutInternal,
+      { checkoutId: args.checkoutId },
+    )
+
+    if (!checkout) throw new Error('Checkout not found.')
+    if (checkout.status === 'paid') {
+      return {
+        alreadyPaid: true,
+        authorization_url: null as string | null,
+        url: null as string | null,
+      }
+    }
+
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
+    if (!secretKey) {
+      throw new Error(
+        'Payment gateway is not configured. Please contact support.',
+      )
+    }
+
+    // CRITICAL: Paystack calculates money in pesewas — multiply GHS by 100
+    const amountInPesewas = Math.round(checkout.totalAmount * 100)
+
+    const customerName =
+      [checkout.shippingAddress.firstName, checkout.shippingAddress.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Customer'
+
+    const orderItemsBreakdown = formatOrderItemsBreakdown(
+      (checkout.items || []).map((i: any) => ({
+        productName: i.productName,
+        quantity: i.quantity,
+        color: i.color,
+        size: i.size,
+      })),
+    )
+
+    // Use the Convex checkout _id as the Paystack reference
+    const reference = String(args.checkoutId)
+
+    const response = await fetch(
+      'https://api.paystack.co/transaction/initialize',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: checkout.email || '',
+          amount: amountInPesewas,
+          currency: 'GHS',
+          reference,
+          channels: ['mobile_money'],
+          callback_url: args.redirectUrl,
+          metadata: {
+            customer_name: customerName,
+            phone_number:
+              checkout.shippingAddress.phone || checkout.momoNumber || '',
+            order_items: orderItemsBreakdown,
+            checkout_id: String(args.checkoutId),
+            custom_fields: [
+              {
+                display_name: 'Customer Name',
+                variable_name: 'customer_name',
+                value: customerName,
+              },
+              {
+                display_name: 'Phone Number',
+                variable_name: 'phone_number',
+                value:
+                  checkout.shippingAddress.phone || checkout.momoNumber || '',
+              },
+            ],
+          },
+        }),
+      },
+    )
+
+    const result = (await response.json()) as PaystackInitializeResponse
+
+    if (result.status === true && result.data?.authorization_url) {
+      return {
+        alreadyPaid: false,
+        authorization_url: result.data.authorization_url,
+        url: result.data.authorization_url,
+      }
+    }
+
+    console.error('[PAYSTACK] Initiation failed:', JSON.stringify(result))
+    throw new Error(
+      result.message || 'Could not initiate payment. Please try again.',
+    )
+  },
+})
+
+// =====================================================================
+// Paystack payment verification (fallback — webhook is the primary path)
+// =====================================================================
+
+export const verifyPaystackPayment = action({
+  args: {
+    reference: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // The Paystack reference is our Convex checkout _id
+    const checkoutId = args.reference as Id<'checkouts'>
+
+    const checkout = await ctx.runQuery(internal.commerce.getCheckoutInternal, {
+      checkoutId,
+    })
+    if (!checkout) {
+      throw new Error('Checkout not found.')
+    }
+
+    if (checkout.status === 'paid') {
+      return { success: true, alreadyPaid: true }
+    }
+
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
+    if (!secretKey) {
+      throw new Error(
+        'Payment gateway is not configured. Please contact support.',
+      )
+    }
+
+    const response = await fetch(
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(
+        args.reference,
+      )}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+        },
+      },
+    )
+
+    const result = (await response.json()) as PaystackVerifyResponse
+    if (
+      !response.ok ||
+      result.status !== true ||
+      result.data?.status !== 'success'
+    ) {
+      console.error('[PAYSTACK VERIFY] Verification failed:', result)
+      throw new Error(
+        result.message ||
+        'Payment was not successful. Please try again or contact support.',
+      )
+    }
+
+    if (result.data.reference !== args.reference) {
+      throw new Error('Payment reference mismatch. Please contact support.')
+    }
+
+    const expectedAmount = Math.round(checkout.totalAmount * 100)
+    if (result.data.amount !== expectedAmount) {
+      throw new Error('Payment amount mismatch. Please contact support.')
+    }
+
+    const paymentResult = await ctx.runMutation(
+      internal.commerce.completePaymentInternal,
+      { checkoutId },
+    )
+
+    if (paymentResult.alreadyPaid) {
+      return { success: true, alreadyPaid: true }
+    }
+
+    // Send order notification email
+    try {
+      const orderData: OrderEmailData = await ctx.runQuery(
+        internal.commerce.getOrderEmailData,
+        { checkoutId },
+      )
+
+      const emailResult = await sendPaidOrderEmail(orderData)
+
+      await ctx.runMutation(
+        internal.commerce.recordOrderNotificationEmailStatus,
+        {
+          checkoutId,
+          success: emailResult.success,
+          error: emailResult.error ?? undefined,
+        },
+      )
+
+      return { success: true, alreadyPaid: false }
+    } catch (error: any) {
+      console.error('[PAYSTACK VERIFY] Notification error:', error)
+      await ctx.runMutation(
+        internal.commerce.recordOrderNotificationEmailStatus,
+        {
+          checkoutId,
+          success: false,
+          error: error.message || String(error),
+        },
+      )
+      throw new Error(
+        `Payment verified but notification failed: ${error.message}`,
+      )
+    }
+  },
+})
