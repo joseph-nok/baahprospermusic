@@ -1,0 +1,167 @@
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '@convex/_generated/api'
+import type { Doc, Id } from '@convex/_generated/dataModel'
+
+const convexApi = api as any
+
+export type EventItem = Doc<'countdownEvents'>
+export type MusicItem = Doc<'music'>
+export type GalleryItem = Doc<'galleries'>
+export type TeamMember = Doc<'team'>
+
+const DEFAULT_EVENT: Omit<EventItem, '_id' | '_creationTime'> = {
+  title: 'Baah Prosper Live in Accra: Songs of Redemption',
+  eventDate: Date.now() + 14 * 24 * 60 * 60 * 1000 + 5 * 3600 * 1000,
+  location: 'Accra International Conference Centre, Ghana',
+  flyerStorageId:
+    'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
+}
+
+export function useAdminEvent() {
+  const event = useQuery(convexApi.adminOperations.getActiveEvent)
+  const updateActiveEvent = useMutation(convexApi.adminOperations.updateActiveEvent)
+
+  const updateEvent = async (updated: Omit<EventItem, '_id' | '_creationTime'>) => {
+    return await updateActiveEvent({
+      title: updated.title,
+      eventDate: updated.eventDate,
+      location: updated.location,
+      flyerStorageId: updated.flyerStorageId,
+    })
+  }
+
+  return {
+    event: event ?? { _id: 'placeholder' as Id<'countdownEvents'>, _creationTime: Date.now(), ...DEFAULT_EVENT },
+    updateEvent,
+    isLoading: event === undefined,
+  }
+}
+
+export function useAdminMusic() {
+  const musicList = useQuery(convexApi.adminOperations.getMusicItems)
+  const createMusicItem = useMutation(convexApi.adminOperations.createMusicItem)
+  const updateMusicItem = useMutation(convexApi.adminOperations.updateMusicItem)
+  const deleteMusicItem = useMutation(convexApi.adminOperations.deleteMusicItem)
+  const generateUploadUrlMutation = useMutation(convexApi.adminOperations.generateUploadUrl)
+
+  const createItem = async (item: Omit<MusicItem, '_id' | '_creationTime'>) => {
+    return await createMusicItem({
+      title: item.title,
+      lyrics: item.lyrics,
+      youtubeUrl: item.youtubeUrl,
+      thumbnail: item.thumbnail,
+      category: item.category,
+    })
+  }
+
+  const updateItem = async (id: Id<'music'>, updatedFields: Partial<Omit<MusicItem, '_id'>>) => {
+    const existing = musicList?.find((item) => item._id === id)
+    if (!existing) return
+
+    await updateMusicItem({
+      id,
+      title: updatedFields.title ?? existing.title,
+      lyrics: updatedFields.lyrics ?? existing.lyrics,
+      youtubeUrl: updatedFields.youtubeUrl ?? existing.youtubeUrl,
+      thumbnail: updatedFields.thumbnail ?? existing.thumbnail,
+      category: updatedFields.category ?? existing.category,
+    })
+  }
+
+  const deleteItem = async (id: Id<'music'>) => {
+    await deleteMusicItem({ id })
+  }
+
+  const generateUploadUrl = async () => {
+    return await generateUploadUrlMutation({})
+  }
+
+  return {
+    musicList: musicList ?? [],
+    createItem,
+    updateItem,
+    deleteItem,
+    generateUploadUrl,
+    isLoading: musicList === undefined,
+  }
+}
+
+export function useAdminGallery() {
+  const galleries = useQuery(convexApi.adminOperations.getGalleries) ?? []
+  const createGalleryMutation = useMutation(convexApi.adminOperations.createGallery)
+  const updateGalleryMutation = useMutation(convexApi.adminOperations.updateGallery)
+  const deleteGalleryMutation = useMutation(convexApi.adminOperations.deleteGallery)
+
+  const createGallery = async (item: Omit<GalleryItem, '_id' | '_creationTime'>) => {
+    return await createGalleryMutation({
+      eventTitle: item.eventTitle,
+      coverImage: item.coverImage,
+      images: item.images,
+    })
+  }
+
+  const updateGallery = async (
+    id: Id<'galleries'>,
+    updatedFields: Partial<Omit<GalleryItem, '_id'>>,
+  ) => {
+    const existing = galleries.find((item) => item._id === id)
+    if (!existing) return
+
+    await updateGalleryMutation({
+      id,
+      eventTitle: updatedFields.eventTitle ?? existing.eventTitle,
+      coverImage: updatedFields.coverImage ?? existing.coverImage,
+      images: updatedFields.images ?? existing.images,
+    })
+  }
+
+  const deleteGallery = async (id: Id<'galleries'>) => {
+    await deleteGalleryMutation({ id })
+  }
+
+  return { galleries, createGallery, updateGallery, deleteGallery }
+}
+
+export function useAdminTeam() {
+  const team = useQuery(convexApi.adminOperations.getTeam) ?? []
+  const createTeamMemberMutation = useMutation(convexApi.adminOperations.createTeamMember)
+  const updateTeamMemberMutation = useMutation(convexApi.adminOperations.updateTeamMember)
+  const deleteTeamMemberMutation = useMutation(convexApi.adminOperations.deleteTeamMember)
+
+  const createMember = async (member: Omit<TeamMember, '_id' | '_creationTime'>) => {
+    return await createTeamMemberMutation({
+      name: member.name,
+      role: member.role,
+      description: member.description,
+      avatarUrl: member.avatarUrl,
+      tiktok: member.tiktok,
+      x: member.x,
+      ig: member.ig,
+    })
+  }
+
+  const updateMember = async (
+    id: Id<'team'>,
+    updatedFields: Partial<Omit<TeamMember, '_id'>>,
+  ) => {
+    const existing = team.find((member) => member._id === id)
+    if (!existing) return
+
+    await updateTeamMemberMutation({
+      id,
+      name: updatedFields.name ?? existing.name,
+      role: updatedFields.role ?? existing.role,
+      description: updatedFields.description ?? existing.description,
+      avatarUrl: updatedFields.avatarUrl ?? existing.avatarUrl,
+      tiktok: updatedFields.tiktok ?? existing.tiktok,
+      x: updatedFields.x ?? existing.x,
+      ig: updatedFields.ig ?? existing.ig,
+    })
+  }
+
+  const deleteMember = async (id: Id<'team'>) => {
+    await deleteTeamMemberMutation({ id })
+  }
+
+  return { team, createMember, updateMember, deleteMember }
+}
