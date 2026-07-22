@@ -6,10 +6,11 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "vinxi dev",
     "dev:admin": "pnpm --filter admin-dashboard dev",
-    "build": "vite build",
     "build:admin": "pnpm --filter admin-dashboard build",
+    "build:main": "vinxi build",
+    "build": "pnpm build:admin && mkdir -p public/admin && cp -r admin/dist/* public/admin/ && pnpm build:main",
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
