@@ -1,92 +1,48 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 
-const MAX_ALBUMS = 30
-const MAX_IMAGES_PER_ALBUM = 100
-
 export const getAlbums = query({
   args: {},
   handler: async (ctx) => {
-    const albums = await ctx.db
-      .query('galleryAibums')
-      .withIndex('by_dateAdded')
+    const galleries = await ctx.db
+      .query('galleries')
       .order('desc')
-      .take(MAX_ALBUMS)
+      .take(50)
 
-    return await Promise.all(
-      albums.map(async (album) => {
-        const images = await ctx.db
-          .query('albumImages')
-          .withIndex('by_category', (q) => q.eq('category', album.category))
-          .take(MAX_IMAGES_PER_ALBUM)
-
-        return {
-          _id: album._id,
-          category: album.category,
-          dateAdded: album.dateAdded,
-          coverImage: album.coverImage,
-          images: images.map((img) => img.url),
-        }
+    return galleries.map((g) => ({
+      _id: g._id,
+      category: g.eventTitle,
+      eventTitle: g.eventTitle,
+      dateAdded: new Date(g._creationTime).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
       }),
-    )
+      coverImage: g.coverImage,
+      images: g.images,
+    }))
   },
 })
 
 export const addAlbum = mutation({
   args: {
     category: v.string(),
-    dateAdded: v.string(),
+    dateAdded: v.optional(v.string()),
     coverImage: v.string(),
     images: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const albumId = await ctx.db.insert('galleryAibums', {
-      category: args.category,
-      dateAdded: args.dateAdded,
+    return await ctx.db.insert('galleries', {
+      eventTitle: args.category,
       coverImage: args.coverImage,
+      images: args.images,
     })
-
-    for (const [index, url] of args.images.entries()) {
-      await ctx.db.insert('albumImages', {
-        category: args.category,
-        url,
-        order: index,
-      })
-    }
-
-    return albumId
   },
 })
 
 export const deleteAlbum = mutation({
-  args: { id: v.id('galleryAibums') },
+  args: { id: v.id('galleries') },
   handler: async (ctx, args) => {
-    const album = await ctx.db.get(args.id)
-    if (album) {
-      const images = await ctx.db
-        .query('albumImages')
-        .withIndex('by_category', (q) => q.eq('category', album.category))
-        .take(MAX_IMAGES_PER_ALBUM)
-
-      for (const image of images) {
-        await ctx.db.delete(image._id)
-      }
-      await ctx.db.delete(args.id)
-    }
-  },
-})
-
-export const addImageToAlbum = mutation({
-  args: {
-    category: v.string(),
-    url: v.string(),
-    order: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.insert('albumImages', {
-      category: args.category,
-      url: args.url,
-      order: args.order,
-    })
+    await ctx.db.delete(args.id)
   },
 })

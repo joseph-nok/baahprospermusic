@@ -2,14 +2,7 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 export default defineSchema({
-  // --- Admin-managed tables ---
-  countdownEvents: defineTable({
-    title: v.string(),
-    eventDate: v.number(),
-    location: v.string(),
-    flyerStorageId: v.optional(v.string()),
-  }),
-
+  // --- Unified Core Tables ---
   music: defineTable({
     title: v.string(),
     lyrics: v.string(),
@@ -34,7 +27,18 @@ export default defineSchema({
     ig: v.optional(v.string()),
   }),
 
-  // --- End admin-managed tables ---
+  upcomingEvent: defineTable({
+    title: v.string(),
+    dateIso: v.string(),
+    timeText: v.string(),
+    venue: v.string(),
+    city: v.string(),
+    town: v.string(),
+    location: v.optional(v.string()),
+    eventDate: v.optional(v.number()),
+    flyerStorageId: v.optional(v.string()),
+  }),
+
   siteSettings: defineTable({
     key: v.string(),
     value: v.any(),
@@ -46,54 +50,6 @@ export default defineSchema({
     phone: v.string(),
     message: v.string(),
   }),
-
-  upcomingEvent: defineTable({
-    title: v.string(),
-    dateIso: v.string(),
-    timeText: v.string(),
-    venue: v.string(),
-    city: v.string(),
-    town: v.string(),
-  }),
-
-  events: defineTable({
-    title: v.string(),
-    dateIso: v.string(),
-    timeText: v.string(),
-    venue: v.optional(v.string()),
-    city: v.optional(v.string()),
-    town: v.optional(v.string()),
-    place: v.optional(v.string()),
-    isPublished: v.boolean(),
-  })
-    .index('by_isPublished', ['isPublished'])
-    .index('by_dateIso', ['dateIso'])
-    .index('by_isPublished_and_dateIso', ['isPublished', 'dateIso']),
-
-  galleryAibums: defineTable({
-    category: v.string(), // Renamed from title
-    dateAdded: v.string(),
-    coverImage: v.string(),
-  }).index('by_dateAdded', ['dateAdded']),
-
-  albumImages: defineTable({
-    category: v.string(), // Link by category name
-    url: v.string(),
-    order: v.optional(v.number()),
-  }).index('by_category', ['category']),
-
-  teamMembers: defineTable({
-    name: v.string(),
-    role: v.string(),
-    image: v.string(),
-    bio: v.string(),
-    instagram: v.optional(v.string()),
-    twitter: v.optional(v.string()),
-    tiktok: v.optional(v.string()),
-  }),
-
-
-
 
   marketProducts: defineTable({
     productLine: v.union(v.literal('merch'), v.literal('cap')),
@@ -152,7 +108,7 @@ export default defineSchema({
 
   checkouts: defineTable({
     cartId: v.optional(v.id('carts')),
-    eventId: v.optional(v.id('events')),
+    eventId: v.optional(v.id('upcomingEvent')),
     status: v.string(),
     paymentMethod: v.string(),
     paymentReference: v.string(),
@@ -244,14 +200,11 @@ export default defineSchema({
     lineTotal: v.number(),
   }).index('by_orderId', ['orderId']),
 
-  // Per-product, per-color images stored in Convex File Storage.
-  // colorName is free-form (e.g. "Black", "White", "Red", "Blue", "Yellow")
-  // so new colors can be added without a schema change.
   merchColorImages: defineTable({
     productId: v.id('marketProducts'),
-    colorName: v.string(), // display name, e.g. "Black"
+    colorName: v.string(),
     storageId: v.id('_storage'),
-    url: v.string(), // cached public URL from ctx.storage.getUrl()
+    url: v.string(),
   })
     .index('by_product', ['productId'])
     .index('by_product_and_color', ['productId', 'colorName']),

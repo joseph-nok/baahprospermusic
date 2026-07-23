@@ -7,7 +7,7 @@ import { api } from '../../convex/_generated/api'
 export const Route = createFileRoute('/music')({
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(
-      convexQuery(api.content.listMusic, {}),
+      convexQuery(api.music.listTracks, {}),
     )
   },
   component: MusicPage,
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/music')({
 
 function MusicPage() {
   const { data: releases } = useQuery(
-    convexQuery(api.content.listMusic, {}),
+    convexQuery(api.music.listTracks, {}),
   )
   if (releases === undefined) {
     return (
@@ -98,7 +98,7 @@ function MusicPage() {
                 </p>
 
                 <div
-                  className={`overflow-hidden transition-all duration-500 ${expandedIds[card.title] ? 'mt-5 max-h-[300px] opacity-100' : 'max-h-0 opacity-0'}`}
+                  className={`overflow-hidden transition-all duration-500 ${expandedIds[card.title] ? 'mt-5 max-h-75 opacity-100' : 'max-h-0 opacity-0'}`}
                 >
                   <p className="text-sm leading-7 text-(--color-copy-soft) italic">
                     {card.lyrics}

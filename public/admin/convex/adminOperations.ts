@@ -1,5 +1,19 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
+
+function normalizeUpcomingEventForAdmin(event: Doc<"upcomingEvent">) {
+  const location =
+    event.location ||
+    [event.venue, event.city, event.town].filter(Boolean).join(", ");
+  const eventDate = event.eventDate ?? new Date(event.dateIso).getTime();
+
+  return {
+    ...event,
+    location,
+    eventDate,
+  };
+}
 
 /**
  * Get the currently active upcoming event countdown data
@@ -7,13 +21,13 @@ import { v } from "convex/values";
 export const getActiveEvent = query({
   args: {},
   handler: async (ctx) => {
-    const activeEvent = await ctx.db.query("events").order("desc").first();
-    return activeEvent;
+    const event = await ctx.db.query("upcomingEvent").first();
+    return event ? normalizeUpcomingEventForAdmin(event) : null;
   },
 });
 
 /**
- * Update or publish a new active live countdown event
+ * Update or publish a new active live upcoming event
  */
 export const updateActiveEvent = mutation({
   args: {
@@ -23,23 +37,45 @@ export const updateActiveEvent = mutation({
     flyerStorageId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("events").first();
+    const dateObj = new Date(args.eventDate);
+    const dateIso = dateObj.toISOString();
+    const timeText = dateObj.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const parts = args.location.split(",").map((s) => s.trim());
+    const venue = parts[0] || args.location;
+    const city = parts[1] || "";
+    const town = parts[2] || "";
+
+    const existing = await ctx.db.query("upcomingEvent").first();
     if (existing) {
       await ctx.db.patch(existing._id, {
         title: args.title,
-        eventDate: args.eventDate,
+        dateIso,
+        timeText,
+        venue,
+        city,
+        town,
         location: args.location,
+        eventDate: args.eventDate,
         flyerStorageId: args.flyerStorageId,
       });
       return existing._id;
-    } else {
-      return await ctx.db.insert("events", {
-        title: args.title,
-        eventDate: args.eventDate,
-        location: args.location,
-        flyerStorageId: args.flyerStorageId,
-      });
     }
+
+    return await ctx.db.insert("upcomingEvent", {
+      title: args.title,
+      dateIso,
+      timeText,
+      venue,
+      city,
+      town,
+      location: args.location,
+      eventDate: args.eventDate,
+      flyerStorageId: args.flyerStorageId,
+    });
   },
 });
 

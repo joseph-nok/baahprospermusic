@@ -4,15 +4,23 @@ import type { Doc, Id } from '../../convex/_generated/dataModel'
 
 const convexApi = api as any
 
-export type EventItem = Doc<'countdownEvents'>
+export type EventItem = Doc<'upcomingEvent'> & {
+  eventDate: number
+  location: string
+}
 export type MusicItem = Doc<'music'>
 export type GalleryItem = Doc<'galleries'>
 export type TeamMember = Doc<'team'>
 
 const DEFAULT_EVENT: Omit<EventItem, '_id' | '_creationTime'> = {
   title: 'Baah Prosper Live in Accra: Songs of Redemption',
+  dateIso: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000 + 5 * 3600 * 1000).toISOString(),
+  timeText: '5:00 PM',
+  venue: 'Accra International Conference Centre',
+  city: 'Accra',
+  town: 'Ghana',
   eventDate: Date.now() + 14 * 24 * 60 * 60 * 1000 + 5 * 3600 * 1000,
-  location: 'Accra International Conference Centre, Ghana',
+  location: 'Accra International Conference Centre, Accra, Ghana',
   flyerStorageId:
     'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
 }
@@ -31,7 +39,7 @@ export function useAdminEvent() {
   }
 
   return {
-    event: event ?? { _id: 'placeholder' as Id<'countdownEvents'>, _creationTime: Date.now(), ...DEFAULT_EVENT },
+    event: event ?? { _id: 'placeholder' as Id<'upcomingEvent'>, _creationTime: Date.now(), ...DEFAULT_EVENT },
     updateEvent,
     isLoading: event === undefined,
   }

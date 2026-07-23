@@ -1,16 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, MapPin, Sparkles, CheckCircle2, Radio } from 'lucide-react';
 import { useAdminEvent } from '../../store/convexStore';
 
 export default function AdminEventsView() {
-  const { event, updateEvent } = useAdminEvent();
+  const { event, updateEvent, isLoading } = useAdminEvent();
 
-  // Form State initialized with current active event
   const [title, setTitle] = useState(event.title);
   const [eventDateString, setEventDateString] = useState(
     new Date(event.eventDate).toISOString().slice(0, 16)
   );
   const [location, setLocation] = useState(event.location);
+
+  useEffect(() => {
+    if (isLoading || event._id === 'placeholder') return
+
+    setTitle(event.title)
+    setEventDateString(new Date(event.eventDate).toISOString().slice(0, 16))
+    setLocation(event.location)
+  }, [event, isLoading])
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -85,7 +92,7 @@ export default function AdminEventsView() {
 
             {/* Event Date & Time */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 <Clock className="w-3.5 h-3.5 text-amber-500" />
                 Event Date & Time *
               </label>
@@ -100,7 +107,7 @@ export default function AdminEventsView() {
 
             {/* Venue Location */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 <MapPin className="w-3.5 h-3.5 text-amber-500" />
                 Venue / Location *
               </label>
@@ -125,7 +132,7 @@ export default function AdminEventsView() {
         </div>
 
         {/* Right Side: Live Event Preview Card */}
-        <div className="lg:col-span-6 p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 space-y-5">
+        <div className="lg:col-span-6 p-6 rounded-2xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 space-y-5">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />

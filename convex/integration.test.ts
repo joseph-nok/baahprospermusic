@@ -25,18 +25,15 @@ describe('Convex backend integration', () => {
       category: 'Worship Night',
       dateAdded: '2026-05-01',
       coverImage: 'https://example.com/cover.jpg',
-      images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+      images: [
+        'https://example.com/1.jpg',
+        'https://example.com/2.jpg',
+        'https://example.com/3.jpg',
+      ],
     })
     const albums = await t.query(api.gallery.getAlbums, {})
     expect(albums).toHaveLength(1)
-    expect(albums[0].images).toHaveLength(2)
-
-    await t.mutation(api.gallery.addImageToAlbum, {
-      category: 'Worship Night',
-      url: 'https://example.com/3.jpg',
-    })
-    const updated = await t.query(api.gallery.getAlbums, {})
-    expect(updated[0].images.length).toBeGreaterThanOrEqual(3)
+    expect(albums[0].images).toHaveLength(3)
 
     await t.mutation(api.gallery.deleteAlbum, { id: albums[0]._id })
     expect(await t.query(api.gallery.getAlbums, {})).toHaveLength(0)
@@ -44,14 +41,14 @@ describe('Convex backend integration', () => {
 
   it('events and upcoming event', async () => {
     const t = convexTest(schema, modules)
-    const eventId = await t.mutation(api.events.createEvent, {
+    await t.mutation(api.events.updateUpcomingEvent, {
       title: 'City Worship',
-      place: 'Accra Arena, Accra, Ghana',
       dateIso: '2030-06-01T18:00:00.000Z',
       timeText: '6:00 PM',
-      isPublished: true,
+      venue: 'Accra Arena',
+      city: 'Accra',
+      town: 'Ghana',
     })
-    expect(eventId).toBeDefined()
 
     const published = await t.query(api.events.listEvents, {
       publishedOnly: true,
@@ -258,8 +255,8 @@ describe('Convex backend integration', () => {
       images: [],
     })
     const stats = await t.query(api.debug.checkGalleryData, {})
-    expect(stats.albumsCount).toBeGreaterThan(0)
-    expect(stats.albums[0].category).toBe('Debug Album')
+    expect(stats.galleriesCount).toBeGreaterThan(0)
+    expect(stats.galleries[0].eventTitle).toBe('Debug Album')
   })
 
   it('invite email action returns not configured without API key', async () => {

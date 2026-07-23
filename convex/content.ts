@@ -19,27 +19,36 @@ export const listMusic = query({
 export const listGalleryItems = query({
   args: {},
   handler: async (ctx) => {
-    const albums = await ctx.db.query('galleryAibums').order('desc').take(20)
-    const result = await Promise.all(
-      albums.map(async (album) => {
-        const images = await ctx.db
-          .query('albumImages')
-          .withIndex('by_category', (q) => q.eq('category', album.category))
-          .collect()
-        return {
-          ...album,
-          images: images.map((img) => img.url),
-        }
+    const galleries = await ctx.db.query('galleries').order('desc').take(20)
+    return galleries.map((g) => ({
+      _id: g._id,
+      category: g.eventTitle,
+      eventTitle: g.eventTitle,
+      dateAdded: new Date(g._creationTime).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
       }),
-    )
-    return result
+      coverImage: g.coverImage,
+      images: g.images,
+    }))
   },
 })
 
 export const listTeamMembers = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query('teamMembers').take(20)
+    const members = await ctx.db.query('team').order('desc').take(20)
+    return members.map((m) => ({
+      _id: m._id,
+      name: m.name,
+      role: m.role,
+      bio: m.description,
+      image: m.avatarUrl || '/Angel.png',
+      instagram: m.ig,
+      twitter: m.x,
+      tiktok: m.tiktok,
+    }))
   },
 })
 
@@ -53,7 +62,7 @@ export const getFeaturedRelease = query({
 export const getEventDate = query({
   args: {},
   handler: async (ctx) => {
-    const event = await ctx.db.query('upcomingEvent').unique()
+    const event = await ctx.db.query('upcomingEvent').first()
     if (event) {
       return `${event.dateIso} ${event.timeText}`
     }
@@ -64,7 +73,18 @@ export const getEventDate = query({
 export const getMemberByName = query({
   args: { name: v.string() },
   handler: async (ctx, args) => {
-    const members = await ctx.db.query('teamMembers').take(20)
-    return members.find((member) => member.name === args.name) ?? null
+    const members = await ctx.db.query('team').take(20)
+    const m = members.find((member) => member.name === args.name)
+    if (!m) return null
+    return {
+      _id: m._id,
+      name: m.name,
+      role: m.role,
+      bio: m.description,
+      image: m.avatarUrl || '/Angel.png',
+      instagram: m.ig,
+      twitter: m.x,
+      tiktok: m.tiktok,
+    }
   },
 })

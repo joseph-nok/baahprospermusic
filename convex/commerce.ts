@@ -310,9 +310,7 @@ export const startCheckout = mutation({
 
     // Fetch the upcoming event for payment reference
     const upcomingEvent = await ctx.db
-      .query('events')
-      .withIndex('by_isPublished', (q) => q.eq('isPublished', true))
-      .order('asc')
+      .query('upcomingEvent')
       .first()
 
     const eventTitle = upcomingEvent?.title || 'Your Event'

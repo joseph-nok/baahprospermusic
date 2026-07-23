@@ -2,10 +2,15 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  events: defineTable({
+  upcomingEvent: defineTable({
     title: v.string(),
-    eventDate: v.number(), // float timestamp in ms
-    location: v.string(),
+    dateIso: v.string(),
+    timeText: v.string(),
+    venue: v.string(),
+    city: v.string(),
+    town: v.string(),
+    location: v.optional(v.string()),
+    eventDate: v.optional(v.number()),
     flyerStorageId: v.optional(v.string()),
   }),
   music: defineTable({
