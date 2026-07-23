@@ -74,10 +74,9 @@ describe('Convex backend integration', () => {
     const t = convexTest(schema, modules)
     await t.mutation(api.music.createTrack, {
       title: 'Test Track',
-      lyric: 'Lyric line',
+      lyrics: 'Lyric line',
       youtubeUrl: 'https://youtube.com/watch?v=1',
-      thumbnailUrl: 'https://example.com/thumb.jpg',
-      isFeatured: true,
+      thumbnail: 'https://example.com/thumb.jpg',
     })
     const tracks = await t.query(api.music.listTracks, {})
     expect(tracks.length).toBeGreaterThan(0)

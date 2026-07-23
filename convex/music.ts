@@ -4,23 +4,18 @@ import { v } from 'convex/values'
 export const createTrack = mutation({
   args: {
     title: v.string(),
-    lyric: v.string(),
+    lyrics: v.string(),
     youtubeUrl: v.string(),
-    thumbnailUrl: v.string(),
-    type: v.optional(v.string()),
-    subtitle: v.optional(v.string()),
-    isFeatured: v.optional(v.boolean()),
+    thumbnail: v.string(),
+    category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert('musicReleases', {
+    return await ctx.db.insert('music', {
       title: args.title.trim(),
-      type: args.type?.trim() || 'Single',
-      subtitle: args.subtitle?.trim(),
-      lyric: args.lyric.trim(),
-      image: args.thumbnailUrl,
-      thumbnailUrl: args.thumbnailUrl,
+      lyrics: args.lyrics.trim(),
       youtubeUrl: args.youtubeUrl,
-      isFeatured: args.isFeatured ?? false,
+      thumbnail: args.thumbnail,
+      category: args.category,
     })
   },
 })
@@ -28,6 +23,6 @@ export const createTrack = mutation({
 export const listTracks = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query('musicReleases').order('desc').take(100)
+    return await ctx.db.query('music').order('desc').take(100)
   },
 })

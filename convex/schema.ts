@@ -92,17 +92,8 @@ export default defineSchema({
     tiktok: v.optional(v.string()),
   }),
 
-  musicReleases: defineTable({
-    title: v.string(),
-    type: v.string(),
-    subtitle: v.optional(v.string()),
-    lyric: v.string(),
-    image: v.optional(v.string()),
-    thumbnailUrl: v.string(),
-    youtubeUrl: v.string(),
-    isFeatured: v.optional(v.boolean()),
-    showOnTop: v.optional(v.boolean()),
-  }).index('by_showOnTop', ['showOnTop']),
+
+
 
   marketProducts: defineTable({
     productLine: v.union(v.literal('merch'), v.literal('cap')),

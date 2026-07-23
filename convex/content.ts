@@ -9,10 +9,10 @@ export const getHomepageContent = query({
   },
 })
 
-export const listMusicReleases = query({
+export const listMusic = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query('musicReleases').order('desc').take(20)
+    return await ctx.db.query('music').order('desc').take(20)
   },
 })
 
@@ -46,8 +46,7 @@ export const listTeamMembers = query({
 export const getFeaturedRelease = query({
   args: {},
   handler: async (ctx) => {
-    const releases = await ctx.db.query('musicReleases').order('desc').take(20)
-    return releases.find((release) => release.isFeatured) ?? null
+    return await ctx.db.query('music').order('desc').first()
   },
 })
 

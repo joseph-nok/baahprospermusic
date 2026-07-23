@@ -7,7 +7,7 @@ import { api } from '../../convex/_generated/api'
 export const Route = createFileRoute('/music')({
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(
-      convexQuery(api.content.listMusicReleases, {}),
+      convexQuery(api.content.listMusic, {}),
     )
   },
   component: MusicPage,
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/music')({
 
 function MusicPage() {
   const { data: releases } = useQuery(
-    convexQuery(api.content.listMusicReleases, {}),
+    convexQuery(api.content.listMusic, {}),
   )
   if (releases === undefined) {
     return (
@@ -84,7 +84,7 @@ function MusicPage() {
                 onClick={() => toggleExpand(card.title)}
               >
                 <img
-                  src={card.thumbnailUrl}
+                  src={card.thumbnail}
                   alt={card.title}
                   className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
@@ -94,14 +94,14 @@ function MusicPage() {
                   {card.title}
                 </h3>
                 <p className="mt-1 text-xs uppercase tracking-[0.24em] text-(--color-copy-soft)">
-                  {card.type}
+                  {card.category}
                 </p>
 
                 <div
                   className={`overflow-hidden transition-all duration-500 ${expandedIds[card.title] ? 'mt-5 max-h-[300px] opacity-100' : 'max-h-0 opacity-0'}`}
                 >
                   <p className="text-sm leading-7 text-(--color-copy-soft) italic">
-                    {card.lyric}
+                    {card.lyrics}
                   </p>
                 </div>
 
