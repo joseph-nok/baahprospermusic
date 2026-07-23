@@ -29,7 +29,7 @@
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-router-ssr-query": "^1.166.11",
     "@tanstack/react-start": "latest",
-    "@tanstack/router-core": "1.168.6",
+    "@tanstack/router-core": "1.171.9",
     "@tanstack/router-plugin": "^1.132.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -62,20 +62,10 @@
     "jsdom": "^28.1.0",
     "prettier": "^3.8.1",
     "typescript": "^5.7.2",
-    "vite": "^7.3.1",
+    "vite": "^7.3.5",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5",
     "wrangler": "^4.95.0"
-  },
-   "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss"
-    ],
-    "overrides": {
-      "@tanstack/router-core": "1.171.9",
-      "vite": "^7.3.5"
-    }
   },
   "nitro": {
     "preset": "vercel"

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { LayoutDashboard, Calendar, Music, Image as ImageIcon, Users, Globe, Music2, ExternalLink, Menu, X } from 'lucide-react';
 import AdminOverviewView from '../components/admin/index';
 import AdminEventsView from '../components/admin/events';
@@ -130,24 +130,21 @@ export default function AdminLayout() {
                     }}
                     className={`
                       w-full flex items-start space-x-3 px-3.5 py-3 rounded-xl text-left transition-all group
-                      ${
-                        isActive
-                          ? 'bg-amber-500 text-slate-950 font-semibold shadow-md shadow-amber-500/20'
-                          : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+                      ${isActive
+                        ? 'bg-amber-500 text-slate-950 font-semibold shadow-md shadow-amber-500/20'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
                       }
                     `}
                   >
                     <Icon
-                      className={`w-5 h-5 mt-0.5 shrink-0 ${
-                        isActive ? 'text-slate-950' : 'text-amber-500 group-hover:scale-110 transition-transform'
-                      }`}
+                      className={`w-5 h-5 mt-0.5 shrink-0 ${isActive ? 'text-slate-950' : 'text-amber-500 group-hover:scale-110 transition-transform'
+                        }`}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium leading-snug">{item.label}</div>
                       <div
-                        className={`text-[11px] truncate ${
-                          isActive ? 'text-slate-900/80 font-normal' : 'text-slate-400'
-                        }`}
+                        className={`text-[11px] truncate ${isActive ? 'text-slate-900/80 font-normal' : 'text-slate-400'
+                          }`}
                       >
                         {item.description}
                       </div>
