@@ -1,6 +1,0 @@
-{
-  "name": "Baah Prosper Music Admin",
-  "description": "Admin Dashboard and Convex backend schema for Baah Prosper Music",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

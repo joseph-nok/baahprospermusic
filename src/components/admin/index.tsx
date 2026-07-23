@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Music, Image as ImageIcon, Users, ArrowUpRight, Clock, MapPin, Sparkles, Plus, Radio, Youtube, TrendingUp, ExternalLink } from 'lucide-react';
 import { useAdminEvent, useAdminMusic, useAdminGallery, useAdminTeam } from '../../store/convexStore';
-import { AdminTab } from '../admin';
+import { AdminTab } from '../../routes/admin';
 
 interface OverviewProps {
   onNavigateTab?: (tab: AdminTab) => void;

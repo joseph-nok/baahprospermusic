@@ -1,12 +1,17 @@
+import { createFileRoute } from '@tanstack/react-router';
 import React, { useState } from 'react';
 import { LayoutDashboard, Calendar, Music, Image as ImageIcon, Users, Globe, Music2, ExternalLink, Menu, X } from 'lucide-react';
-import AdminOverviewView from './admin/index';
-import AdminEventsView from './admin/events';
-import AdminMusicView from './admin/music';
-import AdminGalleryView from './admin/gallery';
-import AdminTeamView from './admin/team';
+import AdminOverviewView from '../components/admin/index';
+import AdminEventsView from '../components/admin/events';
+import AdminMusicView from '../components/admin/music';
+import AdminGalleryView from '../components/admin/gallery';
+import AdminTeamView from '../components/admin/team';
 
 export type AdminTab = 'overview' | 'events' | 'music' | 'gallery' | 'team';
+
+export const Route = createFileRoute('/admin')({
+  component: AdminLayout,
+});
 
 export default function AdminLayout() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
