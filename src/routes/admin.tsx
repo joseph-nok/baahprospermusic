@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { LayoutDashboard, Calendar, Music, Image as ImageIcon, Users, Globe, Music2, ExternalLink, Menu, X } from 'lucide-react';
 import AdminOverviewView from '../components/admin/index';
 import AdminEventsView from '../components/admin/events';
