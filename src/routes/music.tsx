@@ -97,23 +97,36 @@ function MusicPage() {
                   {card.category}
                 </p>
 
+                {card.audioUrl && (
+                  <audio
+                    controls
+                    src={card.audioUrl}
+                    className="mt-5 w-full"
+                    preload="none"
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+                )}
+
                 <div
                   className={`overflow-hidden transition-all duration-500 ${expandedIds[card.title] ? 'mt-5 max-h-75 opacity-100' : 'max-h-0 opacity-0'}`}
                 >
-                  <p className="text-sm leading-7 text-(--color-copy-soft) italic">
+                  <p className="text-sm leading-7 text-(--color-copy-soft) italic whitespace-pre-wrap">
                     {card.lyrics}
                   </p>
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-center gap-6">
-                  <a
-                    href={card.youtubeUrl ?? 'https://youtube.com'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-primary) no-underline hover:underline"
-                  >
-                    Watch On YouTube
-                  </a>
+                  {card.youtubeUrl && (
+                    <a
+                      href={card.youtubeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-primary) no-underline hover:underline"
+                    >
+                      Watch On YouTube
+                    </a>
+                  )}
                   <button
                     onClick={() => toggleExpand(card.title)}
                     className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-copy-soft) hover:text-white"

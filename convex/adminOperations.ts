@@ -92,7 +92,8 @@ export const createMusicItem = mutation({
   args: {
     title: v.string(),
     lyrics: v.string(),
-    youtubeUrl: v.string(),
+    youtubeUrl: v.optional(v.string()),
+    audioUrl: v.optional(v.string()),
     thumbnail: v.string(),
     category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   },
@@ -101,6 +102,7 @@ export const createMusicItem = mutation({
       title: args.title,
       lyrics: args.lyrics,
       youtubeUrl: args.youtubeUrl,
+      audioUrl: args.audioUrl,
       thumbnail: args.thumbnail,
       category: args.category,
     })
@@ -115,7 +117,8 @@ export const updateMusicItem = mutation({
     id: v.id('music'),
     title: v.string(),
     lyrics: v.string(),
-    youtubeUrl: v.string(),
+    youtubeUrl: v.optional(v.string()),
+    audioUrl: v.optional(v.string()),
     thumbnail: v.string(),
     category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   },
@@ -124,6 +127,7 @@ export const updateMusicItem = mutation({
       title: args.title,
       lyrics: args.lyrics,
       youtubeUrl: args.youtubeUrl,
+      audioUrl: args.audioUrl,
       thumbnail: args.thumbnail,
       category: args.category,
     })
@@ -218,6 +222,7 @@ export const createTeamMember = mutation({
     avatarUrl: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -228,6 +233,7 @@ export const createTeamMember = mutation({
       avatarUrl: args.avatarUrl,
       tiktok: args.tiktok,
       x: args.x,
+      youtube: args.youtube,
       ig: args.ig,
     })
   },
@@ -245,6 +251,7 @@ export const updateTeamMember = mutation({
     avatarUrl: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -255,6 +262,7 @@ export const updateTeamMember = mutation({
       avatarUrl: args.avatarUrl,
       tiktok: args.tiktok,
       x: args.x,
+      youtube: args.youtube,
       ig: args.ig,
     })
   },
@@ -277,5 +285,18 @@ export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl()
+  },
+})
+
+/**
+ * Resolve a public URL for a freshly uploaded storage file.
+ * Called by the client right after POSTing a file to the upload URL.
+ */
+export const getUploadedFileUrl = mutation({
+  args: { storageId: v.id('_storage') },
+  handler: async (ctx, args) => {
+    const url = await ctx.storage.getUrl(args.storageId)
+    if (!url) throw new Error('Uploaded file not found in storage.')
+    return url
   },
 })

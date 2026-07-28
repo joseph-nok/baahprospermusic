@@ -25,6 +25,27 @@ const DEFAULT_EVENT: Omit<EventItem, '_id' | '_creationTime'> = {
     'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
 }
 
+/**
+ * Shared helper: upload a File to Convex File Storage and return its public URL.
+ * Usage: const uploadFile = useConvexUpload(); const url = await uploadFile(file)
+ */
+export function useConvexUpload() {
+  const generateUploadUrl = useMutation(convexApi.adminOperations.generateUploadUrl)
+  const getUploadedFileUrl = useMutation(convexApi.adminOperations.getUploadedFileUrl)
+
+  return async (file: File): Promise<string> => {
+    const uploadUrl = await generateUploadUrl({})
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    if (!res.ok) throw new Error('Upload failed: ' + res.statusText)
+    const { storageId } = await res.json()
+    return await getUploadedFileUrl({ storageId })
+  }
+}
+
 export function useAdminEvent() {
   const event = useQuery(convexApi.adminOperations.getActiveEvent)
   const updateActiveEvent = useMutation(convexApi.adminOperations.updateActiveEvent)
@@ -57,6 +78,7 @@ export function useAdminMusic() {
       title: item.title,
       lyrics: item.lyrics,
       youtubeUrl: item.youtubeUrl,
+      audioUrl: item.audioUrl,
       thumbnail: item.thumbnail,
       category: item.category,
     })
@@ -71,6 +93,7 @@ export function useAdminMusic() {
       title: updatedFields.title ?? existing.title,
       lyrics: updatedFields.lyrics ?? existing.lyrics,
       youtubeUrl: updatedFields.youtubeUrl ?? existing.youtubeUrl,
+      audioUrl: updatedFields.audioUrl ?? existing.audioUrl,
       thumbnail: updatedFields.thumbnail ?? existing.thumbnail,
       category: updatedFields.category ?? existing.category,
     })
@@ -144,6 +167,7 @@ export function useAdminTeam() {
       avatarUrl: member.avatarUrl,
       tiktok: member.tiktok,
       x: member.x,
+      youtube: member.youtube,
       ig: member.ig,
     })
   }
@@ -163,6 +187,7 @@ export function useAdminTeam() {
       avatarUrl: updatedFields.avatarUrl ?? existing.avatarUrl,
       tiktok: updatedFields.tiktok ?? existing.tiktok,
       x: updatedFields.x ?? existing.x,
+      youtube: updatedFields.youtube ?? existing.youtube,
       ig: updatedFields.ig ?? existing.ig,
     })
   }
