@@ -6,7 +6,8 @@ export default defineSchema({
   music: defineTable({
     title: v.string(),
     lyrics: v.string(),
-    youtubeUrl: v.string(),
+    youtubeUrl: v.optional(v.string()),
+    audioUrl: v.optional(v.string()),
     thumbnail: v.string(),
     category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   }),
@@ -24,6 +25,7 @@ export default defineSchema({
     avatarUrl: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   }),
 

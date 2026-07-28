@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
-import { Users, UserPlus, Trash2, Edit3, CheckCircle2, Sparkles, X } from 'lucide-react';
-import { useAdminTeam, TeamMember } from '../../store/convexStore';
+import { Users, UserPlus, Trash2, Edit3, CheckCircle2, Sparkles, X, Youtube, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useAdminTeam, useConvexUpload, TeamMember } from '../../store/convexStore';
+import ConfirmDialog from './ConfirmDialog';
 
-// Custom Brand SVG Icons for TikTok, X (Twitter), and Instagram
+// Custom Brand SVG Icons for TikTok and Instagram
 function TikTokIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 2.38 6.336 6.336 0 0 0 1.082 8.802 6.336 6.336 0 0 0 8.816-1.096c.394-.52.684-1.11.855-1.74a6.3 6.3 0 0 0 .154-1.398V9.112a8.217 8.217 0 0 0 4.72 1.488V7.126a4.832 4.832 0 0 1-1.002-.44z" />
-    </svg>
-  );
-}
-
-function XTwitterIcon({ className = 'w-4 h-4' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   );
 }
@@ -31,6 +24,7 @@ function InstagramIcon({ className = 'w-4 h-4' }: { className?: string }) {
 
 export default function AdminTeamView() {
   const { team, createMember, updateMember, deleteMember } = useAdminTeam();
+  const uploadFile = useConvexUpload();
 
   // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,11 +32,19 @@ export default function AdminTeamView() {
   const [role, setRole] = useState('');
   const [description, setDescription] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [tiktok, setTiktok] = useState('');
-  const [xAccount, setXAccount] = useState('');
+  const [youtube, setYoutube] = useState('');
   const [ig, setIg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -51,8 +53,22 @@ export default function AdminTeamView() {
     setDescription('');
     setAvatarUrl('');
     setTiktok('');
-    setXAccount('');
+    setYoutube('');
     setIg('');
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      setAvatarUrl(await uploadFile(file));
+    } catch (err) {
+      console.error('[v0] avatar upload failed:', err);
+      alert('Avatar upload failed. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   const handleStartEdit = (m: TeamMember) => {
@@ -62,11 +78,11 @@ export default function AdminTeamView() {
     setDescription(m.description);
     setAvatarUrl(m.avatarUrl || '');
     setTiktok(m.tiktok || '');
-    setXAccount(m.x || '');
+    setYoutube(m.youtube || '');
     setIg(m.ig || '');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !role.trim() || !description.trim()) {
       alert('Please fill out Name, Role, and Description');
@@ -77,31 +93,33 @@ export default function AdminTeamView() {
       name: name.trim(),
       role: role.trim(),
       description: description.trim(),
-      avatarUrl: avatarUrl.trim() || undefined,
+      avatarUrl: avatarUrl || undefined,
       tiktok: tiktok.trim() || undefined,
-      x: xAccount.trim() || undefined,
+      youtube: youtube.trim() || undefined,
       ig: ig.trim() || undefined,
     };
 
-    if (editingId) {
-      updateMember(editingId, payload);
-      setToastMessage(`Updated team member "${name.trim()}"`);
-    } else {
-      createMember(payload);
-      setToastMessage(`Added team member "${name.trim()}"`);
+    setSubmitting(true);
+    try {
+      if (editingId) {
+        await updateMember(editingId as any, payload);
+        showToast(`Updated team member "${name.trim()}"`);
+      } else {
+        await createMember(payload);
+        showToast(`Added team member "${name.trim()}"`);
+      }
+      resetForm();
+    } finally {
+      setSubmitting(false);
     }
-
-    resetForm();
-    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleDelete = (id: string, memberName: string) => {
-    if (confirm(`Remove "${memberName}" from the team roster?`)) {
-      deleteMember(id);
-      if (editingId === id) resetForm();
-      setToastMessage(`Removed "${memberName}"`);
-      setTimeout(() => setToastMessage(null), 3000);
-    }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    await deleteMember(pendingDelete.id as any);
+    if (editingId === pendingDelete.id) resetForm();
+    showToast(`Removed "${pendingDelete.name}"`);
+    setPendingDelete(null);
   };
 
   return (
@@ -114,7 +132,7 @@ export default function AdminTeamView() {
             Manage Team Roster
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Add team members, artists, producers, and managers with social media links.
+            Add team members with an uploaded avatar photo and social media links.
           </p>
         </div>
 
@@ -127,7 +145,7 @@ export default function AdminTeamView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Side: Member Input Form */}
+        {/* Left: Member Form */}
         <div className="lg:col-span-5 p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
@@ -149,7 +167,7 @@ export default function AdminTeamView() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Member Name */}
+            {/* Name */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 Full Name *
@@ -179,7 +197,7 @@ export default function AdminTeamView() {
               />
             </div>
 
-            {/* Description / Bio */}
+            {/* Description */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 Short Description / Bio *
@@ -194,21 +212,33 @@ export default function AdminTeamView() {
               />
             </div>
 
-            {/* Avatar URL */}
+            {/* Avatar Upload */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Avatar Photo URL (Optional)
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-amber-500" /> Avatar Photo (upload)
               </label>
-              <input
-                type="url"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500 transition-all font-mono"
-              />
+              <div className="p-3 rounded-xl bg-slate-950 border border-dashed border-slate-800 flex items-center space-x-3">
+                {avatarUploading ? (
+                  <Loader2 className="w-5 h-5 text-amber-500 animate-spin shrink-0" />
+                ) : (
+                  <ImageIcon className="w-5 h-5 text-amber-500 shrink-0" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-amber-400 hover:file:bg-slate-700 cursor-pointer w-full"
+                />
+              </div>
+              {avatarUrl && (
+                <div className="mt-2 flex items-center space-x-3 p-2 rounded-xl bg-slate-950 border border-slate-800">
+                  <img src={avatarUrl} alt="Avatar preview" className="w-10 h-10 rounded-full object-cover" />
+                  <span className="text-[11px] text-emerald-400 font-mono truncate">Avatar uploaded</span>
+                </div>
+              )}
             </div>
 
-            {/* Social Accounts with Icons */}
+            {/* Social Handles */}
             <div className="pt-2 border-t border-slate-800/80">
               <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider block mb-2">
                 Social Media Handles (Optional)
@@ -229,16 +259,16 @@ export default function AdminTeamView() {
                   />
                 </div>
 
-                {/* X (Twitter) */}
+                {/* YouTube */}
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-300 shrink-0">
-                    <XTwitterIcon className="w-3.5 h-3.5 text-amber-400" />
+                    <Youtube className="w-4 h-4 text-rose-500" />
                   </div>
                   <input
                     type="text"
-                    value={xAccount}
-                    onChange={(e) => setXAccount(e.target.value)}
-                    placeholder="https://x.com/username"
+                    value={youtube}
+                    onChange={(e) => setYoutube(e.target.value)}
+                    placeholder="https://youtube.com/@channel"
                     className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-amber-500 font-mono"
                   />
                 </div>
@@ -261,15 +291,16 @@ export default function AdminTeamView() {
 
             <button
               type="submit"
-              className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm transition-all shadow-md shadow-amber-500/20 flex items-center justify-center space-x-2 mt-4"
+              disabled={submitting || avatarUploading}
+              className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-bold text-sm transition-all shadow-md shadow-amber-500/20 flex items-center justify-center space-x-2 mt-4"
             >
-              <Sparkles className="w-4 h-4" />
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               <span>{editingId ? 'Update Member Profile' : 'Add Team Member'}</span>
             </button>
           </form>
         </div>
 
-        {/* Right Side: Roster Cards Display */}
+        {/* Right: Roster */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -294,12 +325,6 @@ export default function AdminTeamView() {
                         }
                         alt={member.name}
                         className="w-12 h-12 rounded-full object-cover bg-slate-950 border border-slate-800 shrink-0"
-                        onError={(e) => {
-                          (e.target as HTMLElement).setAttribute(
-                            'src',
-                            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80'
-                          );
-                        }}
                       />
                       <div>
                         <h4 className="text-base font-bold text-white leading-tight">{member.name}</h4>
@@ -318,7 +343,7 @@ export default function AdminTeamView() {
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(member._id, member.name)}
+                        onClick={() => setPendingDelete({ id: member._id, name: member.name })}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                         title="Remove member"
                       >
@@ -332,7 +357,7 @@ export default function AdminTeamView() {
                   </p>
                 </div>
 
-                {/* Social Icon Links Footer */}
+                {/* Social Footer */}
                 <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
                   <span className="text-[10px] text-slate-500 font-mono uppercase">Socials</span>
                   <div className="flex items-center space-x-2">
@@ -347,15 +372,15 @@ export default function AdminTeamView() {
                         <TikTokIcon className="w-4 h-4" />
                       </a>
                     )}
-                    {member.x && (
+                    {member.youtube && (
                       <a
-                        href={member.x}
+                        href={member.youtube}
                         target="_blank"
                         rel="noreferrer"
-                        className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 transition-all hover:scale-110"
-                        title="X (Twitter)"
+                        className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-rose-400 hover:text-rose-300 border border-slate-800 transition-all hover:scale-110"
+                        title="YouTube"
                       >
-                        <XTwitterIcon className="w-3.5 h-3.5" />
+                        <Youtube className="w-4 h-4" />
                       </a>
                     )}
                     {member.ig && (
@@ -369,7 +394,7 @@ export default function AdminTeamView() {
                         <InstagramIcon className="w-4 h-4" />
                       </a>
                     )}
-                    {!member.tiktok && !member.x && !member.ig && (
+                    {!member.tiktok && !member.youtube && !member.ig && (
                       <span className="text-[11px] text-slate-600 italic">No social links</span>
                     )}
                   </div>
@@ -379,6 +404,15 @@ export default function AdminTeamView() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Remove Team Member"
+        message={`Remove "${pendingDelete?.name}" from the team roster? This cannot be undone.`}
+        confirmLabel="Remove"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
