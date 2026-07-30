@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { Instagram, Youtube } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
+import { socialUrl } from '../lib/admin-drafts'
 
 export const Route = createFileRoute('/about')({
   loader: async ({ context }) => {
@@ -137,7 +138,7 @@ function AboutPage() {
                   <div className="mt-6 flex gap-4">
                     {member.instagram && (
                       <a
-                        href={member.instagram}
+                        href={socialUrl(member.instagram, 'instagram')}
                         target="_blank"
                         rel="noreferrer"
                         className="text-(--color-copy-soft) transition-colors hover:text-white"
@@ -148,7 +149,7 @@ function AboutPage() {
                     )}
                     {member.youtube && (
                       <a
-                        href={member.youtube}
+                        href={socialUrl(member.youtube, 'youtube')}
                         target="_blank"
                         rel="noreferrer"
                         className="text-(--color-copy-soft) transition-colors hover:text-white"
@@ -159,7 +160,7 @@ function AboutPage() {
                     )}
                     {member.tiktok && (
                       <a
-                        href={member.tiktok}
+                        href={socialUrl(member.tiktok, 'tiktok')}
                         target="_blank"
                         rel="noreferrer"
                         className="text-(--color-copy-soft) transition-colors hover:text-white"

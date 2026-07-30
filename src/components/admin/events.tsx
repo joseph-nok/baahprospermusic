@@ -1,45 +1,95 @@
-import React, { useEffect, useState } from 'react';
-import { Calendar, Clock, MapPin, Sparkles, CheckCircle2, Radio } from 'lucide-react';
-import { useAdminEvent } from '../../store/convexStore';
+import React, { useEffect, useRef, useState } from 'react'
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Sparkles,
+  CheckCircle2,
+  Radio,
+} from 'lucide-react'
+import { useAdminEvent } from '../../store/convexStore'
+import { useAdminDraft } from '../../lib/admin-drafts'
 
 export default function AdminEventsView() {
-  const { event, updateEvent, isLoading } = useAdminEvent();
+  const { event, updateEvent, isLoading } = useAdminEvent()
 
-  const [title, setTitle] = useState(event.title);
-  const [eventDateString, setEventDateString] = useState(
-    new Date(event.eventDate).toISOString().slice(0, 16)
-  );
-  const [location, setLocation] = useState(event.location);
+  const [title, setTitle, clearTitle, restoredTitle, hasTitleDraft] =
+    useAdminDraft('admin-event-title', event.title)
+  const [
+    eventDateString,
+    setEventDateString,
+    clearDate,
+    restoredDate,
+    hasDateDraft,
+  ] = useAdminDraft(
+    'admin-event-date',
+    new Date(event.eventDate).toISOString().slice(0, 16),
+  )
+  const [
+    location,
+    setLocation,
+    clearLocation,
+    restoredLocation,
+    hasLocationDraft,
+  ] = useAdminDraft('admin-event-location', event.location)
+  const submittedRef = useRef(false)
 
   useEffect(() => {
-    if (isLoading || event._id === 'placeholder') return
+    if (isLoading || event._id === 'placeholder' || submittedRef.current) return
+    if (
+      !restoredTitle ||
+      !restoredDate ||
+      !restoredLocation ||
+      hasTitleDraft ||
+      hasDateDraft ||
+      hasLocationDraft
+    )
+      return
 
     setTitle(event.title)
     setEventDateString(new Date(event.eventDate).toISOString().slice(0, 16))
     setLocation(event.location)
-  }, [event, isLoading])
+  }, [
+    event,
+    isLoading,
+    restoredTitle,
+    restoredDate,
+    restoredLocation,
+    hasTitleDraft,
+    hasDateDraft,
+    hasLocationDraft,
+  ])
 
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
     if (!title.trim() || !location.trim() || !eventDateString) {
-      alert('Please complete all event details (Title, Date & Time, Location).');
-      return;
+      alert(
+        'Event Title, Event Date & Time, and Venue / Location are required.',
+      )
+      return
     }
 
-    const parsedTimestamp = new Date(eventDateString).getTime();
+    const parsedTimestamp = new Date(eventDateString).getTime()
 
-    updateEvent({
+    await updateEvent({
       title: title.trim(),
       eventDate: parsedTimestamp,
       location: location.trim(),
-    });
+    })
 
-    setToastMessage('Live show schedule and countdown timer updated!');
-    setTimeout(() => setToastMessage(null), 3500);
-  };
+    submittedRef.current = true
+    clearTitle()
+    clearDate()
+    clearLocation()
+    setTitle('')
+    setEventDateString('')
+    setLocation('')
+    setToastMessage('Event countdown published successfully.')
+    setTimeout(() => setToastMessage(null), 3500)
+  }
 
   return (
     <div className="space-y-6">
@@ -51,16 +101,10 @@ export default function AdminEventsView() {
             Manage Active Live Event
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Configure the live countdown timer, event title, and venue location displayed on the home page.
+            Configure the live countdown timer, event title, and venue location
+            displayed on the home page.
           </p>
         </div>
-
-        {toastMessage && (
-          <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold animate-fade-in">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -71,7 +115,9 @@ export default function AdminEventsView() {
               <Sparkles className="w-4 h-4 text-amber-500" />
               Event Schedule Configuration
             </h3>
-            <p className="text-xs text-slate-400">Updates live on the public landing page</p>
+            <p className="text-xs text-slate-400">
+              Updates live on the public landing page
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -128,6 +174,12 @@ export default function AdminEventsView() {
               <Sparkles className="w-4 h-4" />
               <span>Publish & Update Event Countdown</span>
             </button>
+            {toastMessage && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
+                <CheckCircle2 className="w-4 h-4" />
+                {toastMessage}
+              </div>
+            )}
           </form>
         </div>
 
@@ -148,7 +200,9 @@ export default function AdminEventsView() {
               <span className="text-[11px] font-mono font-semibold text-amber-500 uppercase tracking-wider">
                 Featured Live Performance
               </span>
-              <h4 className="text-xl font-bold text-white leading-tight">{title || 'Untitled Event'}</h4>
+              <h4 className="text-xl font-bold text-white leading-tight">
+                {title || 'Untitled Event'}
+              </h4>
             </div>
 
             <div className="space-y-2 text-xs text-slate-300">
@@ -173,5 +227,5 @@ export default function AdminEventsView() {
         </div>
       </div>
     </div>
-  );
+  )
 }

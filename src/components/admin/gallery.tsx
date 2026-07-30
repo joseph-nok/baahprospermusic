@@ -15,6 +15,7 @@ import {
 import { useAdminGallery } from '../../store/convexStore'
 import type { GalleryItem } from '../../store/convexStore'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { useAdminDraft } from '../../lib/admin-drafts'
 
 export default function AdminGalleryView() {
   const {
@@ -26,9 +27,17 @@ export default function AdminGalleryView() {
   } = useAdminGallery()
 
   // Create Form State
-  const [eventTitle, setEventTitle] = useState('')
-  const [coverImage, setCoverImage] = useState('')
-  const [galleryImages, setGalleryImages] = useState<string[]>([])
+  const [eventTitle, setEventTitle, clearEventTitle] = useAdminDraft(
+    'admin-gallery-title',
+    '',
+  )
+  const [coverImage, setCoverImage, clearCoverImage] = useAdminDraft(
+    'admin-gallery-cover',
+    '',
+  )
+  const [galleryImages, setGalleryImages, clearGalleryImages] = useAdminDraft<
+    string[]
+  >('admin-gallery-images', [])
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Modal Viewer & Edit Album State
@@ -41,22 +50,27 @@ export default function AdminGalleryView() {
   const [editImages, setEditImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
 
-  const handleCreateGallery = (e: React.FormEvent) => {
+  const handleCreateGallery = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!eventTitle.trim() || !coverImage.trim()) {
-      alert('Please fill out the event title and upload a cover image')
+      alert(
+        'Event Title and Cover Image are required. Please complete both inputs before publishing.',
+      )
       return
     }
 
     const finalImages =
       galleryImages.length > 0 ? galleryImages : [coverImage.trim()]
 
-    createGallery({
+    await createGallery({
       eventTitle: eventTitle.trim(),
       coverImage: coverImage.trim(),
       images: finalImages,
     })
 
+    clearEventTitle()
+    clearCoverImage()
+    clearGalleryImages()
     setEventTitle('')
     setCoverImage('')
     setGalleryImages([])
@@ -165,13 +179,6 @@ export default function AdminGalleryView() {
             existing albums at any time.
           </p>
         </div>
-
-        {toastMessage && (
-          <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold animate-fade-in">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -256,6 +263,12 @@ export default function AdminGalleryView() {
               <Plus className="w-4 h-4" />
               <span>Publish Event Album</span>
             </button>
+            {toastMessage && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
+                <CheckCircle2 className="w-4 h-4" />
+                {toastMessage}
+              </div>
+            )}
           </form>
         </div>
 

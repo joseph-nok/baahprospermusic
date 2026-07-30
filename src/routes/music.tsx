@@ -15,6 +15,12 @@ export const Route = createFileRoute('/music')({
 
 function MusicPage() {
   const { data: releases } = useQuery(convexQuery(api.music.listTracks, {}))
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
   if (releases === undefined) {
     return (
       <main className="px-4 pb-20 pt-14">
@@ -48,12 +54,6 @@ function MusicPage() {
   }
 
   const musicCards = releases
-
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
 
   return (
     <main className="px-4 pb-20 pt-14">
@@ -98,9 +98,39 @@ function MusicPage() {
                 <div
                   className={`overflow-hidden transition-all duration-500 ${expandedIds[card.title] ? 'mt-5 max-h-75 opacity-100' : 'max-h-0 opacity-0'}`}
                 >
-                  <p className="text-sm leading-7 text-(--color-copy-soft) italic">
-                    {card.lyrics}
-                  </p>
+                  <div className="lyrics-reader text-sm leading-7 text-(--color-copy-soft)">
+                    {card.lyrics
+                      .split(/\r?\n/)
+                      .map((line: string, index: number) => {
+                        const trimmed = line.trim()
+                        if (!trimmed) return <div key={index} className="h-3" />
+                        const heading = trimmed.match(/^\[([^\]]+)\]$/)
+                        if (heading)
+                          return (
+                            <h4
+                              key={index}
+                              className="mt-4 mb-1 text-xs font-bold uppercase tracking-[0.2em] text-(--color-primary)"
+                            >
+                              {heading[1]}
+                            </h4>
+                          )
+                        const rendered = trimmed
+                          .replace(/\*\*(.*?)\*\*/g, '$1')
+                          .replace(/\*(.*?)\*/g, '$1')
+                        return (
+                          <p
+                            key={index}
+                            className={
+                              trimmed.startsWith('>')
+                                ? 'border-l-2 border-(--color-primary) pl-3 italic'
+                                : ''
+                            }
+                          >
+                            {rendered}
+                          </p>
+                        )
+                      })}
+                  </div>
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-center gap-6">

@@ -12,6 +12,11 @@ import {
 import { useAdminTeam } from '../../store/convexStore'
 import type { TeamMember } from '../../store/convexStore'
 import type { Id } from '../../../convex/_generated/dataModel'
+import {
+  normalizeHandle,
+  socialUrl,
+  useAdminDraft,
+} from '../../lib/admin-drafts'
 
 // Custom brand SVG icons for TikTok and Instagram.
 function TikTokIcon({ className = 'w-4 h-4' }: { className?: string }) {
@@ -45,19 +50,38 @@ export default function AdminTeamView() {
     useAdminTeam()
 
   // Form State
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [role, setRole] = useState('')
-  const [description, setDescription] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState('')
-  const [tiktok, setTiktok] = useState('')
-  const [youtubeAccount, setYoutubeAccount] = useState('')
-  const [ig, setIg] = useState('')
+  const [editingId, setEditingId] = useState<Id<'team'> | null>(null)
+  const [name, setName, clearName] = useAdminDraft('admin-team-name', '')
+  const [role, setRole, clearRole] = useAdminDraft('admin-team-role', '')
+  const [description, setDescription, clearDescription] = useAdminDraft(
+    'admin-team-description',
+    '',
+  )
+  const [avatarUrl, setAvatarUrl, clearAvatar] = useAdminDraft(
+    'admin-team-avatar',
+    '',
+  )
+  const [tiktok, setTiktok, clearTiktok] = useAdminDraft(
+    'admin-team-tiktok',
+    '',
+  )
+  const [youtubeAccount, setYoutubeAccount, clearYoutube] = useAdminDraft(
+    'admin-team-youtube',
+    '',
+  )
+  const [ig, setIg, clearIg] = useAdminDraft('admin-team-instagram', '')
 
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const resetForm = () => {
     setEditingId(null)
+    clearName()
+    clearRole()
+    clearDescription()
+    clearAvatar()
+    clearTiktok()
+    clearYoutube()
+    clearIg()
     setName('')
     setRole('')
     setDescription('')
@@ -73,16 +97,32 @@ export default function AdminTeamView() {
     setRole(m.role)
     setDescription(m.description)
     setAvatarUrl(m.avatarUrl || '')
-    setTiktok(m.tiktok || '')
-    setYoutubeAccount(m.youtube || '')
-    setIg(m.ig || '')
+    setTiktok(normalizeHandle(m.tiktok || ''))
+    setYoutubeAccount(normalizeHandle(m.youtube || ''))
+    setIg(normalizeHandle(m.ig || ''))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() || !role.trim() || !description.trim()) {
-      alert('Please fill out Name, Role, and Description')
+      alert(
+        'Full Name, Role / Title, and Short Description / Bio are required.',
+      )
       return
+    }
+
+    const handleFields = [
+      ['TikTok', tiktok],
+      ['YouTube', youtubeAccount],
+      ['Instagram', ig],
+    ] as const
+    for (const [label, value] of handleFields) {
+      if (value.trim() && !/^@[A-Za-z0-9._-]+$/.test(value.trim())) {
+        alert(
+          `${label} must be entered as a handle like @username, not as a URL.`,
+        )
+        return
+      }
     }
 
     const payload = {
@@ -90,16 +130,16 @@ export default function AdminTeamView() {
       role: role.trim(),
       description: description.trim(),
       avatarUrl: avatarUrl.trim() || undefined,
-      tiktok: tiktok.trim() || undefined,
-      youtube: youtubeAccount.trim() || undefined,
-      ig: ig.trim() || undefined,
+      tiktok: normalizeHandle(tiktok) || undefined,
+      youtube: normalizeHandle(youtubeAccount) || undefined,
+      ig: normalizeHandle(ig) || undefined,
     }
 
     if (editingId) {
-      updateMember(editingId, payload)
+      await updateMember(editingId, payload)
       setToastMessage(`Updated team member "${name.trim()}"`)
     } else {
-      createMember(payload)
+      await createMember(payload)
       setToastMessage(`Added team member "${name.trim()}"`)
     }
 
@@ -143,13 +183,6 @@ export default function AdminTeamView() {
             links.
           </p>
         </div>
-
-        {toastMessage && (
-          <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold animate-fade-in">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -258,7 +291,7 @@ export default function AdminTeamView() {
                     type="text"
                     value={tiktok}
                     onChange={(e) => setTiktok(e.target.value)}
-                    placeholder="https://tiktok.com/@username"
+                    placeholder="@username"
                     className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-amber-500 font-mono"
                   />
                 </div>
@@ -272,7 +305,7 @@ export default function AdminTeamView() {
                     type="text"
                     value={youtubeAccount}
                     onChange={(e) => setYoutubeAccount(e.target.value)}
-                    placeholder="https://youtube.com/@username"
+                    placeholder="@username"
                     className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-amber-500 font-mono"
                   />
                 </div>
@@ -286,7 +319,7 @@ export default function AdminTeamView() {
                     type="text"
                     value={ig}
                     onChange={(e) => setIg(e.target.value)}
-                    placeholder="https://instagram.com/username"
+                    placeholder="@username"
                     className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-amber-500 font-mono"
                   />
                 </div>
@@ -302,6 +335,12 @@ export default function AdminTeamView() {
                 {editingId ? 'Update Member Profile' : 'Add Team Member'}
               </span>
             </button>
+            {toastMessage && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
+                <CheckCircle2 className="w-4 h-4" />
+                {toastMessage}
+              </div>
+            )}
           </form>
         </div>
 
@@ -380,7 +419,7 @@ export default function AdminTeamView() {
                   <div className="flex items-center space-x-2">
                     {member.tiktok && (
                       <a
-                        href={member.tiktok}
+                        href={socialUrl(member.tiktok, 'tiktok')}
                         target="_blank"
                         rel="noreferrer"
                         className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 transition-all hover:scale-110"
@@ -391,7 +430,7 @@ export default function AdminTeamView() {
                     )}
                     {member.youtube && (
                       <a
-                        href={member.youtube}
+                        href={socialUrl(member.youtube, 'youtube')}
                         target="_blank"
                         rel="noreferrer"
                         className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-800 transition-all hover:scale-110"
@@ -402,7 +441,7 @@ export default function AdminTeamView() {
                     )}
                     {member.ig && (
                       <a
-                        href={member.ig}
+                        href={socialUrl(member.ig, 'instagram')}
                         target="_blank"
                         rel="noreferrer"
                         className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-amber-400 border border-slate-800 transition-all hover:scale-110"

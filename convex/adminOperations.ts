@@ -1,6 +1,6 @@
 import { mutation, query } from './_generated/server'
 import { v } from 'convex/values'
-import type { Doc } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 
 function normalizeUpcomingEventForAdmin(event: Doc<'upcomingEvent'>) {
   const location =
@@ -293,8 +293,10 @@ export const generateUploadUrl = mutation({
 })
 
 export const getStorageUrl = mutation({
-  args: { storageId: v.id('_storage') },
+  // Upload responses are JSON strings in the browser. Validate the value as a
+  // string here, then pass it to Convex's storage reader as a storage ID.
+  args: { storageId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.storage.getUrl(args.storageId)
+    return await ctx.storage.getUrl(args.storageId as Id<'_storage'>)
   },
 })

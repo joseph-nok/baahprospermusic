@@ -16,18 +16,26 @@ async function uploadFile(
   file: File,
   getUploadUrl: () => Promise<string>,
   getStorageUrl: (args: { storageId: string }) => Promise<string | null>,
+  fieldName: string,
 ) {
-  const uploadUrl = await getUploadUrl()
-  const response = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
-    body: file,
-  })
-  if (!response.ok) throw new Error('File upload failed')
-  const { storageId } = (await response.json()) as { storageId: string }
-  const url = await getStorageUrl({ storageId })
-  if (!url) throw new Error('Uploaded file URL could not be resolved')
-  return url
+  try {
+    const uploadUrl = await getUploadUrl()
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    })
+    if (!response.ok) throw new Error('upload request rejected')
+    const { storageId } = (await response.json()) as { storageId: string }
+    if (!storageId) throw new Error('upload did not return a file ID')
+    const url = await getStorageUrl({ storageId })
+    if (!url) throw new Error('file URL was empty')
+    return url
+  } catch {
+    throw new Error(
+      `${fieldName} could not be uploaded. Please choose the file again and try once more.`,
+    )
+  }
 }
 
 const DEFAULT_EVENT: Omit<EventItem, '_id' | '_creationTime'> = {
@@ -51,9 +59,12 @@ export function useAdminEvent() {
     convexApi.adminOperations.updateActiveEvent,
   )
 
-  const updateEvent = async (
-    updated: Omit<EventItem, '_id' | '_creationTime'>,
-  ) => {
+  const updateEvent = async (updated: {
+    title: string
+    eventDate: number
+    location: string
+    flyerStorageId?: string
+  }) => {
     return await updateActiveEvent({
       title: updated.title,
       eventDate: updated.eventDate,
@@ -122,8 +133,8 @@ export function useAdminMusic() {
     return await generateUploadUrlMutation({})
   }
 
-  const uploadMusicFile = (file: File) =>
-    uploadFile(file, generateUploadUrl, getStorageUrlMutation)
+  const uploadMusicFile = (file: File, fieldName = 'Song file') =>
+    uploadFile(file, generateUploadUrl, getStorageUrlMutation, fieldName)
 
   return {
     musicList: musicList ?? [],
@@ -185,7 +196,12 @@ export function useAdminGallery() {
 
   const uploadGalleryFile = async (file: File) => {
     const getUploadUrl = () => generateUploadUrlMutation({})
-    return uploadFile(file, getUploadUrl, getStorageUrlMutation)
+    return uploadFile(
+      file,
+      getUploadUrl,
+      getStorageUrlMutation,
+      'Gallery image',
+    )
   }
 
   return {
@@ -256,7 +272,7 @@ export function useAdminTeam() {
 
   const uploadTeamFile = async (file: File) => {
     const getUploadUrl = () => generateUploadUrlMutation({})
-    return uploadFile(file, getUploadUrl, getStorageUrlMutation)
+    return uploadFile(file, getUploadUrl, getStorageUrlMutation, 'Avatar photo')
   }
 
   return { team, createMember, updateMember, deleteMember, uploadTeamFile }

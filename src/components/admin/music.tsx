@@ -18,17 +18,33 @@ import {
 import { useAdminMusic } from '../../store/convexStore'
 import type { MusicItem } from '../../store/convexStore'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { useAdminDraft } from '../../lib/admin-drafts'
 
 export default function AdminMusicView() {
   const { musicList, createItem, updateItem, deleteItem, uploadMusicFile } =
     useAdminMusic()
 
   // New Song Form State (Top/Side Form)
-  const [newTitle, setNewTitle] = useState('')
-  const [newLyrics, setNewLyrics] = useState('')
-  const [newYoutubeUrl, setNewYoutubeUrl] = useState('')
-  const [newThumbnail, setNewThumbnail] = useState('')
-  const [newAudioUrl, setNewAudioUrl] = useState('')
+  const [newTitle, setNewTitle, clearNewTitle] = useAdminDraft(
+    'admin-music-title',
+    '',
+  )
+  const [newLyrics, setNewLyrics, clearNewLyrics] = useAdminDraft(
+    'admin-music-lyrics',
+    '',
+  )
+  const [newYoutubeUrl, setNewYoutubeUrl, clearNewYoutube] = useAdminDraft(
+    'admin-music-youtube',
+    '',
+  )
+  const [newThumbnail, setNewThumbnail, clearNewThumbnail] = useAdminDraft(
+    'admin-music-thumbnail',
+    '',
+  )
+  const [newAudioUrl, setNewAudioUrl, clearNewAudio] = useAdminDraft(
+    'admin-music-audio',
+    '',
+  )
   const [newCategory, setNewCategory] = useState<'Album' | 'Single'>('Single')
 
   // Inline Editing Card State
@@ -43,23 +59,47 @@ export default function AdminMusicView() {
   // Expanded Lyrics State for Card View
   const [expandedLyricsId, setExpandedLyricsId] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
 
   // Handle New Song Creation
   const handleCreateNewSong = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (
-      !newTitle.trim() ||
-      !newLyrics.trim() ||
-      !newYoutubeUrl.trim() ||
-      !newThumbnail.trim() ||
-      !newAudioUrl.trim()
-    ) {
-      alert(
-        'Please fill out Title, Lyrics, YouTube Link, Thumbnail, and Audio.',
+    if (!newTitle.trim()) {
+      setFormError(
+        'Song Title is required. Enter a title such as “Matama”, “Mercy and Grace”, or “Chants”.',
       )
       return
     }
+    if (!newThumbnail.trim()) {
+      setFormError(
+        'Song Thumbnail Image is required. Choose a PNG, JPG, WEBP, or other image file.',
+      )
+      return
+    }
+    if (!newAudioUrl.trim()) {
+      setFormError(
+        'Song Audio File is required. Choose an MP3, MP4, M4A, WAV, OGG, or other audio file.',
+      )
+      return
+    }
+    if (
+      !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(
+        newYoutubeUrl.trim(),
+      )
+    ) {
+      setFormError(
+        'YouTube Song Link must begin with https://youtube.com/ or https://youtu.be/. Example: https://youtu.be/FOZpHgaa7iw?si=GvA4x1M9Cb0dDtf_',
+      )
+      return
+    }
+    if (!newLyrics.trim()) {
+      setFormError(
+        'Song Lyrics are required. Write them in any style, including verses, chorus labels, and line breaks.',
+      )
+      return
+    }
+    setFormError(null)
 
     createItem({
       title: newTitle.trim(),
@@ -70,6 +110,11 @@ export default function AdminMusicView() {
       category: newCategory,
     })
 
+    clearNewTitle()
+    clearNewLyrics()
+    clearNewYoutube()
+    clearNewThumbnail()
+    clearNewAudio()
     setNewTitle('')
     setNewLyrics('')
     setNewYoutubeUrl('')
@@ -85,14 +130,36 @@ export default function AdminMusicView() {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0]
-    if (file) setNewThumbnail(await uploadMusicFile(file))
+    if (file) {
+      try {
+        setNewThumbnail(await uploadMusicFile(file, 'Song Thumbnail Image'))
+        setFormError(null)
+      } catch (error) {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : 'Song Thumbnail Image could not be uploaded.',
+        )
+      }
+    }
   }
 
   const handleNewAudioFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0]
-    if (file) setNewAudioUrl(await uploadMusicFile(file))
+    if (file) {
+      try {
+        setNewAudioUrl(await uploadMusicFile(file, 'Song Audio File'))
+        setFormError(null)
+      } catch (error) {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : 'Song Audio File could not be uploaded.',
+        )
+      }
+    }
   }
 
   // Start Inline Card Editing
@@ -110,27 +177,63 @@ export default function AdminMusicView() {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0]
-    if (file) setEditThumbnail(await uploadMusicFile(file))
+    if (file) {
+      try {
+        setEditThumbnail(await uploadMusicFile(file, 'Song Thumbnail Image'))
+        setFormError(null)
+      } catch (error) {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : 'Song Thumbnail Image could not be uploaded.',
+        )
+      }
+    }
   }
 
   const handleEditAudioFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0]
-    if (file) setEditAudioUrl(await uploadMusicFile(file))
+    if (file) {
+      try {
+        setEditAudioUrl(await uploadMusicFile(file, 'Song Audio File'))
+        setFormError(null)
+      } catch (error) {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : 'Song Audio File could not be uploaded.',
+        )
+      }
+    }
   }
 
   // Save Inline Card Edits
   const handleSaveCardEdit = (id: Id<'music'>) => {
-    if (
-      !editTitle.trim() ||
-      !editLyrics.trim() ||
-      !editYoutubeUrl.trim() ||
-      !editThumbnail.trim()
-    ) {
-      alert('Please complete all required fields on the song card.')
+    if (!editTitle.trim()) {
+      setFormError('Song Title is required.')
       return
     }
+    if (!editThumbnail.trim()) {
+      setFormError('Song Thumbnail Image is required. Choose an image file.')
+      return
+    }
+    if (
+      !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(
+        editYoutubeUrl.trim(),
+      )
+    ) {
+      setFormError(
+        'YouTube Song Link must begin with https://youtube.com/ or https://youtu.be/.',
+      )
+      return
+    }
+    if (!editLyrics.trim()) {
+      setFormError('Song Lyrics are required.')
+      return
+    }
+    setFormError(null)
 
     updateItem(id, {
       title: editTitle.trim(),
@@ -169,13 +272,6 @@ export default function AdminMusicView() {
             watch links.
           </p>
         </div>
-
-        {toastMessage && (
-          <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold animate-fade-in">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
       </div>
 
       {/* Split Pane Grid Layout */}
@@ -192,6 +288,15 @@ export default function AdminMusicView() {
             </p>
           </div>
 
+          {formError && (
+            <div
+              role="alert"
+              className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs leading-5 text-rose-200"
+            >
+              {formError}
+            </div>
+          )}
+
           <form onSubmit={handleCreateNewSong} className="space-y-4">
             {/* Song Title */}
             <div className="space-y-1.5">
@@ -200,7 +305,6 @@ export default function AdminMusicView() {
               </label>
               <input
                 type="text"
-                required
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="e.g. Grace & Prosperity"
@@ -236,7 +340,7 @@ export default function AdminMusicView() {
                   <ImageIcon className="w-5 h-5 text-amber-500 shrink-0" />
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/*"
                     onChange={handleNewThumbnailFileChange}
                     className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-amber-400 hover:file:bg-slate-700 cursor-pointer w-full"
                   />
@@ -263,8 +367,7 @@ export default function AdminMusicView() {
               </label>
               <input
                 type="file"
-                required={!newAudioUrl}
-                accept="audio/*"
+                accept="audio/*,video/mp4,.mp3,.mp4,.m4a,.wav,.ogg,.webm"
                 onChange={handleNewAudioFileChange}
                 className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-amber-400 cursor-pointer w-full"
               />
@@ -281,7 +384,6 @@ export default function AdminMusicView() {
               </label>
               <input
                 type="url"
-                required
                 value={newYoutubeUrl}
                 onChange={(e) => setNewYoutubeUrl(e.target.value)}
                 placeholder="https://www.youtube.com/watch?v=..."
@@ -300,7 +402,6 @@ export default function AdminMusicView() {
               </label>
               <textarea
                 rows={5}
-                required
                 value={newLyrics}
                 onChange={(e) => setNewLyrics(e.target.value)}
                 placeholder={`[Verse 1]\nWrite lyrics here...\n\n[Chorus]\nOheneba, we lift Your name...`}
@@ -316,6 +417,12 @@ export default function AdminMusicView() {
               <Plus className="w-4 h-4" />
               <span>Add Song to Catalog</span>
             </button>
+            {toastMessage && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
+                <CheckCircle2 className="w-4 h-4" />
+                {toastMessage}
+              </div>
+            )}
           </form>
         </div>
 
@@ -395,7 +502,7 @@ export default function AdminMusicView() {
                       </label>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/*"
                         onChange={handleEditThumbnailFileChange}
                         className="text-xs text-slate-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[11px] file:bg-slate-800 file:text-amber-400"
                       />
@@ -407,7 +514,7 @@ export default function AdminMusicView() {
                       </label>
                       <input
                         type="file"
-                        accept="audio/*"
+                        accept="audio/*,video/mp4,.mp3,.mp4,.m4a,.wav,.ogg,.webm"
                         onChange={handleEditAudioFileChange}
                         className="text-xs text-slate-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[11px] file:bg-slate-800 file:text-amber-400"
                       />
