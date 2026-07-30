@@ -7,19 +7,25 @@ import { socialUrl } from '../lib/admin-drafts'
 
 export const Route = createFileRoute('/about')({
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(
-      convexQuery(api.content.listTeamMembers, {}),
-    )
+    try {
+      await context.queryClient.ensureQueryData(
+        convexQuery(api.content.listTeamMembers, {}),
+      )
+    } catch {
+      // The about page can render its static content without the team query.
+      // Do not turn a temporary Convex outage into a full-page 500 response.
+      return null
+    }
   },
   component: AboutPage,
 })
 
 function AboutPage() {
-  const { data: teamMembers } = useQuery(
+  const { data: teamMembers, error } = useQuery(
     convexQuery(api.content.listTeamMembers, {}),
   )
 
-  if (!teamMembers) {
+  if (!teamMembers && !error) {
     return (
       <main className="px-4 pb-20 pt-14">
         <section className="page-wrap animate-pulse">
@@ -116,7 +122,7 @@ function AboutPage() {
           Dedicated hearts behind the melodies
         </h2>
         <div className="mt-10 grid gap-8 lg:grid-cols-3">
-          {teamMembers.map((member: any) => (
+          {teamMembers?.map((member: any) => (
             <article
               key={member.name}
               className="editorial-card overflow-hidden"
@@ -186,6 +192,12 @@ function AboutPage() {
             </article>
           ))}
         </div>
+        {error && (
+          <p className="mt-8 text-sm text-(--color-copy-soft)">
+            Team profiles are temporarily unavailable. Please check back
+            shortly.
+          </p>
+        )}
       </section>
     </main>
   )
