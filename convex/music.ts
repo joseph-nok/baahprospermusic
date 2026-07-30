@@ -7,6 +7,7 @@ export const createTrack = mutation({
     lyrics: v.string(),
     youtubeUrl: v.string(),
     thumbnail: v.string(),
+    audioUrl: v.optional(v.string()),
     category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   },
   handler: async (ctx, args) => {
@@ -15,6 +16,7 @@ export const createTrack = mutation({
       lyrics: args.lyrics.trim(),
       youtubeUrl: args.youtubeUrl,
       thumbnail: args.thumbnail,
+      audioUrl: args.audioUrl,
       category: args.category,
     })
   },

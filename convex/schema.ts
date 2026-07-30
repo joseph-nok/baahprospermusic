@@ -8,6 +8,7 @@ export default defineSchema({
     lyrics: v.string(),
     youtubeUrl: v.string(),
     thumbnail: v.string(),
+    audioUrl: v.optional(v.string()),
     category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   }),
 
@@ -24,6 +25,7 @@ export default defineSchema({
     avatarUrl: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   }),
 

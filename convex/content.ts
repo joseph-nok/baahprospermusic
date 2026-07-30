@@ -46,7 +46,7 @@ export const listTeamMembers = query({
       bio: m.description,
       image: m.avatarUrl || '/Angel.png',
       instagram: m.ig,
-      twitter: m.x,
+      youtube: m.youtube,
       tiktok: m.tiktok,
     }))
   },
@@ -83,7 +83,7 @@ export const getMemberByName = query({
       bio: m.description,
       image: m.avatarUrl || '/Angel.png',
       instagram: m.ig,
-      twitter: m.x,
+      youtube: m.youtube,
       tiktok: m.tiktok,
     }
   },

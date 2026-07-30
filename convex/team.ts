@@ -13,6 +13,7 @@ export const addMember = mutation({
     twitter: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -23,6 +24,7 @@ export const addMember = mutation({
       avatarUrl: args.avatarUrl || args.image || '/Angel.png',
       tiktok: args.tiktok,
       x: args.x || args.twitter,
+      youtube: args.youtube,
       ig: args.ig || args.instagram,
     })
   },
@@ -41,6 +43,7 @@ export const updateMember = mutation({
     twitter: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -51,6 +54,7 @@ export const updateMember = mutation({
       avatarUrl: args.avatarUrl || args.image || '/Angel.png',
       tiktok: args.tiktok,
       x: args.x || args.twitter,
+      youtube: args.youtube,
       ig: args.ig || args.instagram,
     })
   },

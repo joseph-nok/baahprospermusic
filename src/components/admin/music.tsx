@@ -1,36 +1,64 @@
-import React, { useState } from 'react';
-import { Music, Upload, Trash2, Edit3, Plus, ExternalLink, CheckCircle2, FileText, Youtube, Image as ImageIcon, Sparkles, X, ChevronDown, ChevronUp, Save } from 'lucide-react';
-import { useAdminMusic, MusicItem } from '../../store/convexStore';
+import React, { useState } from 'react'
+import {
+  Music,
+  Upload,
+  Trash2,
+  Edit3,
+  Plus,
+  ExternalLink,
+  CheckCircle2,
+  FileText,
+  Youtube,
+  Image as ImageIcon,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Save,
+} from 'lucide-react'
+import { useAdminMusic } from '../../store/convexStore'
+import type { MusicItem } from '../../store/convexStore'
+import type { Id } from '../../../convex/_generated/dataModel'
 
 export default function AdminMusicView() {
-  const { musicList, createItem, updateItem, deleteItem } = useAdminMusic();
+  const { musicList, createItem, updateItem, deleteItem, uploadMusicFile } =
+    useAdminMusic()
 
   // New Song Form State (Top/Side Form)
-  const [newTitle, setNewTitle] = useState('');
-  const [newLyrics, setNewLyrics] = useState('');
-  const [newYoutubeUrl, setNewYoutubeUrl] = useState('');
-  const [newThumbnail, setNewThumbnail] = useState('');
-  const [newCategory, setNewCategory] = useState<'Album' | 'Single'>('Single');
+  const [newTitle, setNewTitle] = useState('')
+  const [newLyrics, setNewLyrics] = useState('')
+  const [newYoutubeUrl, setNewYoutubeUrl] = useState('')
+  const [newThumbnail, setNewThumbnail] = useState('')
+  const [newAudioUrl, setNewAudioUrl] = useState('')
+  const [newCategory, setNewCategory] = useState<'Album' | 'Single'>('Single')
 
   // Inline Editing Card State
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editLyrics, setEditLyrics] = useState('');
-  const [editYoutubeUrl, setEditYoutubeUrl] = useState('');
-  const [editThumbnail, setEditThumbnail] = useState('');
-  const [editCategory, setEditCategory] = useState<'Album' | 'Single'>('Single');
+  const [editingCardId, setEditingCardId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editLyrics, setEditLyrics] = useState('')
+  const [editYoutubeUrl, setEditYoutubeUrl] = useState('')
+  const [editThumbnail, setEditThumbnail] = useState('')
+  const [editAudioUrl, setEditAudioUrl] = useState('')
+  const [editCategory, setEditCategory] = useState<'Album' | 'Single'>('Single')
 
   // Expanded Lyrics State for Card View
-  const [expandedLyricsId, setExpandedLyricsId] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [expandedLyricsId, setExpandedLyricsId] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Handle New Song Creation
   const handleCreateNewSong = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    if (!newTitle.trim() || !newLyrics.trim() || !newYoutubeUrl.trim() || !newThumbnail.trim()) {
-      alert('Please fill out all fields for the new song (Title, Lyrics, YouTube Link, and Thumbnail).');
-      return;
+    if (
+      !newTitle.trim() ||
+      !newLyrics.trim() ||
+      !newYoutubeUrl.trim() ||
+      !newThumbnail.trim() ||
+      !newAudioUrl.trim()
+    ) {
+      alert(
+        'Please fill out Title, Lyrics, YouTube Link, Thumbnail, and Audio.',
+      )
+      return
     }
 
     createItem({
@@ -38,50 +66,70 @@ export default function AdminMusicView() {
       lyrics: newLyrics.trim(),
       youtubeUrl: newYoutubeUrl.trim(),
       thumbnail: newThumbnail.trim(),
+      audioUrl: newAudioUrl.trim(),
       category: newCategory,
-    });
+    })
 
-    setNewTitle('');
-    setNewLyrics('');
-    setNewYoutubeUrl('');
-    setNewThumbnail('');
-    setNewCategory('Single');
+    setNewTitle('')
+    setNewLyrics('')
+    setNewYoutubeUrl('')
+    setNewThumbnail('')
+    setNewAudioUrl('')
+    setNewCategory('Single')
 
-    setToastMessage(`Added "${newTitle.trim()}" to Music Catalog`);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
+    setToastMessage(`Added "${newTitle.trim()}" to Music Catalog`)
+    setTimeout(() => setToastMessage(null), 3500)
+  }
 
-  const handleNewThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const preview = URL.createObjectURL(file);
-      setNewThumbnail(preview);
-    }
-  };
+  const handleNewThumbnailFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) setNewThumbnail(await uploadMusicFile(file))
+  }
+
+  const handleNewAudioFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) setNewAudioUrl(await uploadMusicFile(file))
+  }
 
   // Start Inline Card Editing
   const handleStartCardEdit = (song: MusicItem) => {
-    setEditingCardId(song._id);
-    setEditTitle(song.title);
-    setEditLyrics(song.lyrics);
-    setEditYoutubeUrl(song.youtubeUrl);
-    setEditThumbnail(song.thumbnail);
-    setEditCategory(song.category || 'Single');
-  };
+    setEditingCardId(song._id)
+    setEditTitle(song.title)
+    setEditLyrics(song.lyrics)
+    setEditYoutubeUrl(song.youtubeUrl)
+    setEditThumbnail(song.thumbnail)
+    setEditAudioUrl(song.audioUrl || '')
+    setEditCategory(song.category || 'Single')
+  }
 
-  const handleEditThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const preview = URL.createObjectURL(file);
-      setEditThumbnail(preview);
-    }
-  };
+  const handleEditThumbnailFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) setEditThumbnail(await uploadMusicFile(file))
+  }
+
+  const handleEditAudioFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) setEditAudioUrl(await uploadMusicFile(file))
+  }
 
   // Save Inline Card Edits
-  const handleSaveCardEdit = (id: string) => {
-    if (!editTitle.trim() || !editLyrics.trim() || !editYoutubeUrl.trim() || !editThumbnail.trim()) {
-      alert('Please complete all required fields on the song card.');
-      return;
+  const handleSaveCardEdit = (id: Id<'music'>) => {
+    if (
+      !editTitle.trim() ||
+      !editLyrics.trim() ||
+      !editYoutubeUrl.trim() ||
+      !editThumbnail.trim()
+    ) {
+      alert('Please complete all required fields on the song card.')
+      return
     }
 
     updateItem(id, {
@@ -89,22 +137,23 @@ export default function AdminMusicView() {
       lyrics: editLyrics.trim(),
       youtubeUrl: editYoutubeUrl.trim(),
       thumbnail: editThumbnail.trim(),
+      audioUrl: editAudioUrl.trim() || undefined,
       category: editCategory,
-    });
+    })
 
-    setEditingCardId(null);
-    setToastMessage(`Updated song "${editTitle.trim()}"`);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
+    setEditingCardId(null)
+    setToastMessage(`Updated song "${editTitle.trim()}"`)
+    setTimeout(() => setToastMessage(null), 3500)
+  }
 
-  const handleDelete = (id: string, trackTitle: string) => {
+  const handleDelete = (id: Id<'music'>, trackTitle: string) => {
     if (confirm(`Delete "${trackTitle}" from Music Catalog?`)) {
-      deleteItem(id);
-      if (editingCardId === id) setEditingCardId(null);
-      setToastMessage(`Deleted "${trackTitle}"`);
-      setTimeout(() => setToastMessage(null), 3000);
+      deleteItem(id)
+      if (editingCardId === id) setEditingCardId(null)
+      setToastMessage(`Deleted "${trackTitle}"`)
+      setTimeout(() => setToastMessage(null), 3000)
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -116,7 +165,8 @@ export default function AdminMusicView() {
             Music Catalog
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Manage songs in catalog with thumbnails, lyrics, and YouTube video watch links.
+            Manage songs in catalog with thumbnails, lyrics, and YouTube video
+            watch links.
           </p>
         </div>
 
@@ -137,7 +187,9 @@ export default function AdminMusicView() {
               <Upload className="w-4 h-4 text-amber-500" />
               Upload Song Thumbnails
             </h3>
-            <p className="text-xs text-slate-400">Add new song thumbnail, lyrics & YouTube link</p>
+            <p className="text-xs text-slate-400">
+              Add new song thumbnail, lyrics & YouTube link
+            </p>
           </div>
 
           <form onSubmit={handleCreateNewSong} className="space-y-4">
@@ -163,7 +215,9 @@ export default function AdminMusicView() {
               </label>
               <select
                 value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value as 'Album' | 'Single')}
+                onChange={(e) =>
+                  setNewCategory(e.target.value as 'Album' | 'Single')
+                }
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-amber-500 transition-all"
               >
                 <option value="Single">Single</option>
@@ -171,22 +225,13 @@ export default function AdminMusicView() {
               </select>
             </div>
 
-            {/* Song Thumbnail File / Image URL Input */}
+            {/* Song Thumbnail Upload */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 Song Thumbnail Image *
               </label>
 
               <div className="space-y-2">
-                <input
-                  type="text"
-                  required
-                  value={newThumbnail}
-                  onChange={(e) => setNewThumbnail(e.target.value)}
-                  placeholder="https://images.unsplash.com/... or upload image"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono"
-                />
-
                 <div className="p-3 rounded-xl bg-slate-950 border border-dashed border-slate-800 flex items-center space-x-3">
                   <ImageIcon className="w-5 h-5 text-amber-500 shrink-0" />
                   <input
@@ -200,9 +245,31 @@ export default function AdminMusicView() {
 
               {newThumbnail && (
                 <div className="mt-2 flex items-center space-x-3 p-2 rounded-xl bg-slate-950 border border-slate-800">
-                  <img src={newThumbnail} alt="Thumbnail preview" className="w-10 h-10 rounded-lg object-cover" />
-                  <span className="text-[11px] text-emerald-400 font-mono truncate">Thumbnail Preview Attached</span>
+                  <img
+                    src={newThumbnail}
+                    alt="Thumbnail preview"
+                    className="w-10 h-10 rounded-lg object-cover"
+                  />
+                  <span className="text-[11px] text-emerald-400 font-mono truncate">
+                    Thumbnail Preview Attached
+                  </span>
                 </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Song Audio File *
+              </label>
+              <input
+                type="file"
+                required={!newAudioUrl}
+                accept="audio/*"
+                onChange={handleNewAudioFileChange}
+                className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-amber-400 cursor-pointer w-full"
+              />
+              {newAudioUrl && (
+                <audio controls src={newAudioUrl} className="w-full" />
               )}
             </div>
 
@@ -220,7 +287,9 @@ export default function AdminMusicView() {
                 placeholder="https://www.youtube.com/watch?v=..."
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500 font-mono transition-all"
               />
-              <p className="text-[11px] text-slate-500">Links to YouTube where users click "Watch on YouTube".</p>
+              <p className="text-[11px] text-slate-500">
+                Links to YouTube where users click "Watch on YouTube".
+              </p>
             </div>
 
             {/* Lyrics Textarea */}
@@ -256,13 +325,15 @@ export default function AdminMusicView() {
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               Music Catalog ({musicList.length} Songs)
             </h3>
-            <span className="text-xs text-slate-400">Click edit on any card to modify directly on that card</span>
+            <span className="text-xs text-slate-400">
+              Click edit on any card to modify directly on that card
+            </span>
           </div>
 
           <div className="space-y-4">
-            {musicList.map((song) => {
-              const isEditing = editingCardId === song._id;
-              const isLyricsExpanded = expandedLyricsId === song._id;
+            {musicList.map((song: MusicItem) => {
+              const isEditing = editingCardId === song._id
+              const isLyricsExpanded = expandedLyricsId === song._id
 
               // If this card is currently being edited inline:
               if (isEditing) {
@@ -286,7 +357,9 @@ export default function AdminMusicView() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {/* Song Title */}
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-slate-300">Title</label>
+                        <label className="text-[11px] font-semibold text-slate-300">
+                          Title
+                        </label>
                         <input
                           type="text"
                           value={editTitle}
@@ -297,10 +370,16 @@ export default function AdminMusicView() {
 
                       {/* Release Category */}
                       <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-slate-300">Release Type</label>
+                        <label className="text-[11px] font-semibold text-slate-300">
+                          Release Type
+                        </label>
                         <select
                           value={editCategory}
-                          onChange={(e) => setEditCategory(e.target.value as 'Album' | 'Single')}
+                          onChange={(e) =>
+                            setEditCategory(
+                              e.target.value as 'Album' | 'Single',
+                            )
+                          }
                           className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-amber-500"
                         >
                           <option value="Single">Single</option>
@@ -311,13 +390,9 @@ export default function AdminMusicView() {
 
                     {/* Thumbnail URL & File upload inline */}
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold text-slate-300">Thumbnail Image URL / Upload</label>
-                      <input
-                        type="text"
-                        value={editThumbnail}
-                        onChange={(e) => setEditThumbnail(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:outline-none focus:border-amber-500"
-                      />
+                      <label className="text-[11px] font-semibold text-slate-300">
+                        Thumbnail Image Upload
+                      </label>
                       <input
                         type="file"
                         accept="image/*"
@@ -326,10 +401,26 @@ export default function AdminMusicView() {
                       />
                     </div>
 
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-slate-300">
+                        Audio File
+                      </label>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleEditAudioFileChange}
+                        className="text-xs text-slate-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[11px] file:bg-slate-800 file:text-amber-400"
+                      />
+                      {editAudioUrl && (
+                        <audio controls src={editAudioUrl} className="w-full" />
+                      )}
+                    </div>
+
                     {/* YouTube Link */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1">
-                        <Youtube className="w-3.5 h-3.5 text-rose-500" /> YouTube Watch Link
+                        <Youtube className="w-3.5 h-3.5 text-rose-500" />{' '}
+                        YouTube Watch Link
                       </label>
                       <input
                         type="url"
@@ -341,7 +432,9 @@ export default function AdminMusicView() {
 
                     {/* Lyrics Textarea */}
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-slate-300">Song Lyrics</label>
+                      <label className="text-[11px] font-semibold text-slate-300">
+                        Song Lyrics
+                      </label>
                       <textarea
                         rows={4}
                         value={editLyrics}
@@ -369,7 +462,7 @@ export default function AdminMusicView() {
                       </button>
                     </div>
                   </div>
-                );
+                )
               }
 
               // Standard Normal View Card:
@@ -386,15 +479,17 @@ export default function AdminMusicView() {
                         alt={song.title}
                         className="w-20 h-20 rounded-xl object-cover bg-slate-950 border border-slate-800 shrink-0 shadow-md"
                         onError={(e) => {
-                          (e.target as HTMLElement).setAttribute(
+                          ;(e.target as HTMLElement).setAttribute(
                             'src',
-                            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80'
-                          );
+                            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
+                          )
                         }}
                       />
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center space-x-2 flex-wrap">
-                          <h4 className="text-lg font-bold text-white tracking-tight">{song.title}</h4>
+                          <h4 className="text-lg font-bold text-white tracking-tight">
+                            {song.title}
+                          </h4>
                           {song.category && (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
                               {song.category}
@@ -404,6 +499,13 @@ export default function AdminMusicView() {
 
                         {/* Watch on YouTube Action Button */}
                         <div>
+                          {song.audioUrl && (
+                            <audio
+                              controls
+                              src={song.audioUrl}
+                              className="mb-2 max-w-full"
+                            />
+                          )}
                           <a
                             href={song.youtubeUrl}
                             target="_blank"
@@ -447,10 +549,16 @@ export default function AdminMusicView() {
                       </span>
 
                       <button
-                        onClick={() => setExpandedLyricsId(isLyricsExpanded ? null : song._id)}
+                        onClick={() =>
+                          setExpandedLyricsId(
+                            isLyricsExpanded ? null : song._id,
+                          )
+                        }
                         className="text-amber-500 hover:text-amber-400 font-medium flex items-center gap-1 transition-colors"
                       >
-                        <span>{isLyricsExpanded ? 'Collapse Lyrics' : 'View Lyrics'}</span>
+                        <span>
+                          {isLyricsExpanded ? 'Collapse Lyrics' : 'View Lyrics'}
+                        </span>
                         {isLyricsExpanded ? (
                           <ChevronUp className="w-3.5 h-3.5" />
                         ) : (
@@ -461,7 +569,9 @@ export default function AdminMusicView() {
 
                     <div
                       className={`text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed transition-all ${
-                        isLyricsExpanded ? 'max-h-none' : 'max-h-20 overflow-hidden relative'
+                        isLyricsExpanded
+                          ? 'max-h-none'
+                          : 'max-h-20 overflow-hidden relative'
                       }`}
                     >
                       {song.lyrics}
@@ -471,11 +581,11 @@ export default function AdminMusicView() {
                     </div>
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

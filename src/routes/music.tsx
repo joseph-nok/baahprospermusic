@@ -14,9 +14,7 @@ export const Route = createFileRoute('/music')({
 })
 
 function MusicPage() {
-  const { data: releases } = useQuery(
-    convexQuery(api.music.listTracks, {}),
-  )
+  const { data: releases } = useQuery(convexQuery(api.music.listTracks, {}))
   if (releases === undefined) {
     return (
       <main className="px-4 pb-20 pt-14">
@@ -49,7 +47,7 @@ function MusicPage() {
     )
   }
 
-  const musicCards = releases ?? []
+  const musicCards = releases
 
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
 
@@ -106,8 +104,16 @@ function MusicPage() {
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-center gap-6">
+                  {card.audioUrl && (
+                    <audio
+                      controls
+                      src={card.audioUrl}
+                      className="w-full"
+                      aria-label={`${card.title} audio`}
+                    />
+                  )}
                   <a
-                    href={card.youtubeUrl ?? 'https://youtube.com'}
+                    href={card.youtubeUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-primary) no-underline hover:underline"

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import { Instagram } from 'lucide-react'
+import { Instagram, Youtube } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 
 export const Route = createFileRoute('/about')({
@@ -146,22 +146,15 @@ function AboutPage() {
                         <Instagram size={18} />
                       </a>
                     )}
-                    {member.twitter && (
+                    {member.youtube && (
                       <a
-                        href={member.twitter}
+                        href={member.youtube}
                         target="_blank"
                         rel="noreferrer"
                         className="text-(--color-copy-soft) transition-colors hover:text-white"
-                        aria-label="X (Twitter)"
+                        aria-label="YouTube"
                       >
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                        </svg>
+                        <Youtube size={18} />
                       </a>
                     )}
                     {member.tiktok && (

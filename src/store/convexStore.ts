@@ -12,9 +12,29 @@ export type MusicItem = Doc<'music'>
 export type GalleryItem = Doc<'galleries'>
 export type TeamMember = Doc<'team'>
 
+async function uploadFile(
+  file: File,
+  getUploadUrl: () => Promise<string>,
+  getStorageUrl: (args: { storageId: string }) => Promise<string | null>,
+) {
+  const uploadUrl = await getUploadUrl()
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  })
+  if (!response.ok) throw new Error('File upload failed')
+  const { storageId } = (await response.json()) as { storageId: string }
+  const url = await getStorageUrl({ storageId })
+  if (!url) throw new Error('Uploaded file URL could not be resolved')
+  return url
+}
+
 const DEFAULT_EVENT: Omit<EventItem, '_id' | '_creationTime'> = {
   title: 'Baah Prosper Live in Accra: Songs of Redemption',
-  dateIso: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000 + 5 * 3600 * 1000).toISOString(),
+  dateIso: new Date(
+    Date.now() + 14 * 24 * 60 * 60 * 1000 + 5 * 3600 * 1000,
+  ).toISOString(),
   timeText: '5:00 PM',
   venue: 'Accra International Conference Centre',
   city: 'Accra',
@@ -27,9 +47,13 @@ const DEFAULT_EVENT: Omit<EventItem, '_id' | '_creationTime'> = {
 
 export function useAdminEvent() {
   const event = useQuery(convexApi.adminOperations.getActiveEvent)
-  const updateActiveEvent = useMutation(convexApi.adminOperations.updateActiveEvent)
+  const updateActiveEvent = useMutation(
+    convexApi.adminOperations.updateActiveEvent,
+  )
 
-  const updateEvent = async (updated: Omit<EventItem, '_id' | '_creationTime'>) => {
+  const updateEvent = async (
+    updated: Omit<EventItem, '_id' | '_creationTime'>,
+  ) => {
     return await updateActiveEvent({
       title: updated.title,
       eventDate: updated.eventDate,
@@ -39,7 +63,11 @@ export function useAdminEvent() {
   }
 
   return {
-    event: event ?? { _id: 'placeholder' as Id<'upcomingEvent'>, _creationTime: Date.now(), ...DEFAULT_EVENT },
+    event: event ?? {
+      _id: 'placeholder' as Id<'upcomingEvent'>,
+      _creationTime: Date.now(),
+      ...DEFAULT_EVENT,
+    },
     updateEvent,
     isLoading: event === undefined,
   }
@@ -50,7 +78,12 @@ export function useAdminMusic() {
   const createMusicItem = useMutation(convexApi.adminOperations.createMusicItem)
   const updateMusicItem = useMutation(convexApi.adminOperations.updateMusicItem)
   const deleteMusicItem = useMutation(convexApi.adminOperations.deleteMusicItem)
-  const generateUploadUrlMutation = useMutation(convexApi.adminOperations.generateUploadUrl)
+  const generateUploadUrlMutation = useMutation(
+    convexApi.adminOperations.generateUploadUrl,
+  )
+  const getStorageUrlMutation = useMutation(
+    convexApi.adminOperations.getStorageUrl,
+  )
 
   const createItem = async (item: Omit<MusicItem, '_id' | '_creationTime'>) => {
     return await createMusicItem({
@@ -58,12 +91,16 @@ export function useAdminMusic() {
       lyrics: item.lyrics,
       youtubeUrl: item.youtubeUrl,
       thumbnail: item.thumbnail,
+      audioUrl: item.audioUrl,
       category: item.category,
     })
   }
 
-  const updateItem = async (id: Id<'music'>, updatedFields: Partial<Omit<MusicItem, '_id'>>) => {
-    const existing = musicList?.find((item) => item._id === id)
+  const updateItem = async (
+    id: Id<'music'>,
+    updatedFields: Partial<Omit<MusicItem, '_id'>>,
+  ) => {
+    const existing = musicList?.find((item: MusicItem) => item._id === id)
     if (!existing) return
 
     await updateMusicItem({
@@ -72,6 +109,7 @@ export function useAdminMusic() {
       lyrics: updatedFields.lyrics ?? existing.lyrics,
       youtubeUrl: updatedFields.youtubeUrl ?? existing.youtubeUrl,
       thumbnail: updatedFields.thumbnail ?? existing.thumbnail,
+      audioUrl: updatedFields.audioUrl ?? existing.audioUrl,
       category: updatedFields.category ?? existing.category,
     })
   }
@@ -84,23 +122,41 @@ export function useAdminMusic() {
     return await generateUploadUrlMutation({})
   }
 
+  const uploadMusicFile = (file: File) =>
+    uploadFile(file, generateUploadUrl, getStorageUrlMutation)
+
   return {
     musicList: musicList ?? [],
     createItem,
     updateItem,
     deleteItem,
     generateUploadUrl,
+    uploadMusicFile,
     isLoading: musicList === undefined,
   }
 }
 
 export function useAdminGallery() {
   const galleries = useQuery(convexApi.adminOperations.getGalleries) ?? []
-  const createGalleryMutation = useMutation(convexApi.adminOperations.createGallery)
-  const updateGalleryMutation = useMutation(convexApi.adminOperations.updateGallery)
-  const deleteGalleryMutation = useMutation(convexApi.adminOperations.deleteGallery)
+  const createGalleryMutation = useMutation(
+    convexApi.adminOperations.createGallery,
+  )
+  const updateGalleryMutation = useMutation(
+    convexApi.adminOperations.updateGallery,
+  )
+  const deleteGalleryMutation = useMutation(
+    convexApi.adminOperations.deleteGallery,
+  )
+  const generateUploadUrlMutation = useMutation(
+    convexApi.adminOperations.generateUploadUrl,
+  )
+  const getStorageUrlMutation = useMutation(
+    convexApi.adminOperations.getStorageUrl,
+  )
 
-  const createGallery = async (item: Omit<GalleryItem, '_id' | '_creationTime'>) => {
+  const createGallery = async (
+    item: Omit<GalleryItem, '_id' | '_creationTime'>,
+  ) => {
     return await createGalleryMutation({
       eventTitle: item.eventTitle,
       coverImage: item.coverImage,
@@ -112,7 +168,7 @@ export function useAdminGallery() {
     id: Id<'galleries'>,
     updatedFields: Partial<Omit<GalleryItem, '_id'>>,
   ) => {
-    const existing = galleries.find((item) => item._id === id)
+    const existing = galleries.find((item: GalleryItem) => item._id === id)
     if (!existing) return
 
     await updateGalleryMutation({
@@ -127,16 +183,41 @@ export function useAdminGallery() {
     await deleteGalleryMutation({ id })
   }
 
-  return { galleries, createGallery, updateGallery, deleteGallery }
+  const uploadGalleryFile = async (file: File) => {
+    const getUploadUrl = () => generateUploadUrlMutation({})
+    return uploadFile(file, getUploadUrl, getStorageUrlMutation)
+  }
+
+  return {
+    galleries,
+    createGallery,
+    updateGallery,
+    deleteGallery,
+    uploadGalleryFile,
+  }
 }
 
 export function useAdminTeam() {
   const team = useQuery(convexApi.adminOperations.getTeam) ?? []
-  const createTeamMemberMutation = useMutation(convexApi.adminOperations.createTeamMember)
-  const updateTeamMemberMutation = useMutation(convexApi.adminOperations.updateTeamMember)
-  const deleteTeamMemberMutation = useMutation(convexApi.adminOperations.deleteTeamMember)
+  const createTeamMemberMutation = useMutation(
+    convexApi.adminOperations.createTeamMember,
+  )
+  const updateTeamMemberMutation = useMutation(
+    convexApi.adminOperations.updateTeamMember,
+  )
+  const deleteTeamMemberMutation = useMutation(
+    convexApi.adminOperations.deleteTeamMember,
+  )
+  const generateUploadUrlMutation = useMutation(
+    convexApi.adminOperations.generateUploadUrl,
+  )
+  const getStorageUrlMutation = useMutation(
+    convexApi.adminOperations.getStorageUrl,
+  )
 
-  const createMember = async (member: Omit<TeamMember, '_id' | '_creationTime'>) => {
+  const createMember = async (
+    member: Omit<TeamMember, '_id' | '_creationTime'>,
+  ) => {
     return await createTeamMemberMutation({
       name: member.name,
       role: member.role,
@@ -144,6 +225,7 @@ export function useAdminTeam() {
       avatarUrl: member.avatarUrl,
       tiktok: member.tiktok,
       x: member.x,
+      youtube: member.youtube,
       ig: member.ig,
     })
   }
@@ -152,7 +234,7 @@ export function useAdminTeam() {
     id: Id<'team'>,
     updatedFields: Partial<Omit<TeamMember, '_id'>>,
   ) => {
-    const existing = team.find((member) => member._id === id)
+    const existing = team.find((member: TeamMember) => member._id === id)
     if (!existing) return
 
     await updateTeamMemberMutation({
@@ -163,6 +245,7 @@ export function useAdminTeam() {
       avatarUrl: updatedFields.avatarUrl ?? existing.avatarUrl,
       tiktok: updatedFields.tiktok ?? existing.tiktok,
       x: updatedFields.x ?? existing.x,
+      youtube: updatedFields.youtube ?? existing.youtube,
       ig: updatedFields.ig ?? existing.ig,
     })
   }
@@ -171,5 +254,10 @@ export function useAdminTeam() {
     await deleteTeamMemberMutation({ id })
   }
 
-  return { team, createMember, updateMember, deleteMember }
+  const uploadTeamFile = async (file: File) => {
+    const getUploadUrl = () => generateUploadUrlMutation({})
+    return uploadFile(file, getUploadUrl, getStorageUrlMutation)
+  }
+
+  return { team, createMember, updateMember, deleteMember, uploadTeamFile }
 }

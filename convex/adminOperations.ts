@@ -39,7 +39,11 @@ export const updateActiveEvent = mutation({
   handler: async (ctx, args) => {
     const dateObj = new Date(args.eventDate)
     const dateIso = dateObj.toISOString()
-    const timeText = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    const timeText = dateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
     const parts = args.location.split(',').map((s) => s.trim())
     const venue = parts[0] || args.location
     const city = parts[1] || ''
@@ -94,6 +98,7 @@ export const createMusicItem = mutation({
     lyrics: v.string(),
     youtubeUrl: v.string(),
     thumbnail: v.string(),
+    audioUrl: v.optional(v.string()),
     category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   },
   handler: async (ctx, args) => {
@@ -102,6 +107,7 @@ export const createMusicItem = mutation({
       lyrics: args.lyrics,
       youtubeUrl: args.youtubeUrl,
       thumbnail: args.thumbnail,
+      audioUrl: args.audioUrl,
       category: args.category,
     })
   },
@@ -117,6 +123,7 @@ export const updateMusicItem = mutation({
     lyrics: v.string(),
     youtubeUrl: v.string(),
     thumbnail: v.string(),
+    audioUrl: v.optional(v.string()),
     category: v.optional(v.union(v.literal('Album'), v.literal('Single'))),
   },
   handler: async (ctx, args) => {
@@ -125,6 +132,7 @@ export const updateMusicItem = mutation({
       lyrics: args.lyrics,
       youtubeUrl: args.youtubeUrl,
       thumbnail: args.thumbnail,
+      audioUrl: args.audioUrl,
       category: args.category,
     })
   },
@@ -218,6 +226,7 @@ export const createTeamMember = mutation({
     avatarUrl: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -228,6 +237,7 @@ export const createTeamMember = mutation({
       avatarUrl: args.avatarUrl,
       tiktok: args.tiktok,
       x: args.x,
+      youtube: args.youtube,
       ig: args.ig,
     })
   },
@@ -245,6 +255,7 @@ export const updateTeamMember = mutation({
     avatarUrl: v.optional(v.string()),
     tiktok: v.optional(v.string()),
     x: v.optional(v.string()),
+    youtube: v.optional(v.string()),
     ig: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -255,6 +266,7 @@ export const updateTeamMember = mutation({
       avatarUrl: args.avatarUrl,
       tiktok: args.tiktok,
       x: args.x,
+      youtube: args.youtube,
       ig: args.ig,
     })
   },
@@ -277,5 +289,12 @@ export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl()
+  },
+})
+
+export const getStorageUrl = mutation({
+  args: { storageId: v.id('_storage') },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.storageId)
   },
 })

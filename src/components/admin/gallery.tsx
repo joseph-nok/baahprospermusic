@@ -1,108 +1,155 @@
-import React, { useState } from 'react';
-import { Image as ImageIcon, Plus, Trash2, X, Eye, FolderPlus, Layers, CheckCircle2, Edit3, Save, Upload } from 'lucide-react';
-import { useAdminGallery, GalleryItem } from '../../store/convexStore';
+import React, { useState } from 'react'
+import {
+  Image as ImageIcon,
+  Plus,
+  Trash2,
+  X,
+  Eye,
+  FolderPlus,
+  Layers,
+  CheckCircle2,
+  Edit3,
+  Save,
+  Upload,
+} from 'lucide-react'
+import { useAdminGallery } from '../../store/convexStore'
+import type { GalleryItem } from '../../store/convexStore'
+import type { Id } from '../../../convex/_generated/dataModel'
 
 export default function AdminGalleryView() {
-  const { galleries, createGallery, updateGallery, deleteGallery } = useAdminGallery();
+  const {
+    galleries,
+    createGallery,
+    updateGallery,
+    deleteGallery,
+    uploadGalleryFile,
+  } = useAdminGallery()
 
   // Create Form State
-  const [eventTitle, setEventTitle] = useState('');
-  const [coverImage, setCoverImage] = useState('');
-  const [imagesInput, setImagesInput] = useState('');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [eventTitle, setEventTitle] = useState('')
+  const [coverImage, setCoverImage] = useState('')
+  const [galleryImages, setGalleryImages] = useState<string[]>([])
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Modal Viewer & Edit Album State
-  const [selectedGallery, setSelectedGallery] = useState<GalleryItem | null>(null);
-  const [isEditingAlbum, setIsEditingAlbum] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editCoverImage, setEditCoverImage] = useState('');
-  const [editImages, setEditImages] = useState<string[]>([]);
-  const [newPhotosInput, setNewPhotosInput] = useState('');
+  const [selectedGallery, setSelectedGallery] = useState<GalleryItem | null>(
+    null,
+  )
+  const [isEditingAlbum, setIsEditingAlbum] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editCoverImage, setEditCoverImage] = useState('')
+  const [editImages, setEditImages] = useState<string[]>([])
+  const [isUploading, setIsUploading] = useState(false)
 
   const handleCreateGallery = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!eventTitle.trim() || !coverImage.trim()) {
-      alert('Please fill out the event title and cover image URL');
-      return;
+      alert('Please fill out the event title and upload a cover image')
+      return
     }
 
-    const parsedImages = imagesInput
-      .split(/[\n,]+/)
-      .map((url) => url.trim())
-      .filter((url) => url.length > 0);
-
-    const finalImages = parsedImages.length > 0 ? parsedImages : [coverImage.trim()];
+    const finalImages =
+      galleryImages.length > 0 ? galleryImages : [coverImage.trim()]
 
     createGallery({
       eventTitle: eventTitle.trim(),
       coverImage: coverImage.trim(),
       images: finalImages,
-    });
+    })
 
-    setEventTitle('');
-    setCoverImage('');
-    setImagesInput('');
+    setEventTitle('')
+    setCoverImage('')
+    setGalleryImages([])
 
-    setToastMessage(`Created gallery album for "${eventTitle.trim()}"`);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
+    setToastMessage(`Created gallery album for "${eventTitle.trim()}"`)
+    setTimeout(() => setToastMessage(null), 3500)
+  }
 
   const handleStartEditAlbum = (album: GalleryItem) => {
-    setSelectedGallery(album);
-    setEditTitle(album.eventTitle);
-    setEditCoverImage(album.coverImage);
-    setEditImages([...album.images]);
-    setNewPhotosInput('');
-    setIsEditingAlbum(true);
-  };
+    setSelectedGallery(album)
+    setEditTitle(album.eventTitle)
+    setEditCoverImage(album.coverImage)
+    setEditImages([...album.images])
+    setIsEditingAlbum(true)
+  }
 
   const handleRemoveImageFromEdit = (index: number) => {
-    setEditImages((prev) => prev.filter((_, i) => i !== index));
-  };
+    setEditImages((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const handleSaveAlbumEdit = () => {
-    if (!selectedGallery) return;
+    if (!selectedGallery) return
     if (!editTitle.trim() || !editCoverImage.trim()) {
-      alert('Event title and cover image URL are required.');
-      return;
+      alert('Event title and cover image are required.')
+      return
     }
 
-    // Parse any additional photo URLs entered
-    const additionalImages = newPhotosInput
-      .split(/[\n,]+/)
-      .map((url) => url.trim())
-      .filter((url) => url.length > 0);
-
-    const combinedImages = [...editImages, ...additionalImages];
-    const finalImages = combinedImages.length > 0 ? combinedImages : [editCoverImage.trim()];
+    const finalImages =
+      editImages.length > 0 ? editImages : [editCoverImage.trim()]
 
     updateGallery(selectedGallery._id, {
       eventTitle: editTitle.trim(),
       coverImage: editCoverImage.trim(),
       images: finalImages,
-    });
+    })
 
     setSelectedGallery({
       ...selectedGallery,
       eventTitle: editTitle.trim(),
       coverImage: editCoverImage.trim(),
       images: finalImages,
-    });
+    })
 
-    setIsEditingAlbum(false);
-    setNewPhotosInput('');
-    setToastMessage(`Updated gallery "${editTitle.trim()}"`);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
+    setIsEditingAlbum(false)
+    setToastMessage(`Updated gallery "${editTitle.trim()}"`)
+    setTimeout(() => setToastMessage(null), 3500)
+  }
 
-  const handleDelete = (id: string, title: string) => {
-    if (confirm(`Are you sure you want to delete the gallery for "${title}"?`)) {
-      deleteGallery(id);
-      if (selectedGallery?._id === id) setSelectedGallery(null);
-      setToastMessage(`Deleted gallery album`);
-      setTimeout(() => setToastMessage(null), 3000);
+  const uploadSingle = async (file: File, setter: (url: string) => void) => {
+    setIsUploading(true)
+    try {
+      setter(await uploadGalleryFile(file))
+    } finally {
+      setIsUploading(false)
     }
-  };
+  }
+
+  const handleNewPhotos = async (files: FileList | null) => {
+    if (!files) return
+    setIsUploading(true)
+    try {
+      const urls = await Promise.all(
+        Array.from(files).map((file) => uploadGalleryFile(file)),
+      )
+      setGalleryImages((current) => [...current, ...urls])
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleEditPhotos = async (files: FileList | null) => {
+    if (!files) return
+    setIsUploading(true)
+    try {
+      const urls = await Promise.all(
+        Array.from(files).map((file) => uploadGalleryFile(file)),
+      )
+      setEditImages((current) => [...current, ...urls])
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleDelete = (id: Id<'galleries'>, title: string) => {
+    if (
+      confirm(`Are you sure you want to delete the gallery for "${title}"?`)
+    ) {
+      deleteGallery(id)
+      if (selectedGallery?._id === id) setSelectedGallery(null)
+      setToastMessage(`Deleted gallery album`)
+      setTimeout(() => setToastMessage(null), 3000)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -114,7 +161,8 @@ export default function AdminGalleryView() {
             Event Picture Gallery
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Upload and manage event photo albums. Add or delete photos from existing albums at any time.
+            Upload and manage event photo albums. Add or delete photos from
+            existing albums at any time.
           </p>
         </div>
 
@@ -134,7 +182,9 @@ export default function AdminGalleryView() {
               <FolderPlus className="w-4 h-4 text-amber-500" />
               Upload New Event Album
             </h3>
-            <p className="text-xs text-slate-400">e.g. Pictures taken on "Songs of Redemption"</p>
+            <p className="text-xs text-slate-400">
+              e.g. Pictures taken on "Songs of Redemption"
+            </p>
           </div>
 
           <form onSubmit={handleCreateGallery} className="space-y-4">
@@ -153,35 +203,49 @@ export default function AdminGalleryView() {
               />
             </div>
 
-            {/* Cover Image URL */}
+            {/* Cover Image Upload */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Cover Image URL *
+                Cover Image *
               </label>
               <input
-                type="url"
-                required
-                value={coverImage}
-                onChange={(e) => setCoverImage(e.target.value)}
-                placeholder="https://images.unsplash.com/... cover photo link"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500 transition-all font-mono"
+                type="file"
+                required={!coverImage}
+                accept="image/*"
+                onChange={(e) =>
+                  e.target.files?.[0] &&
+                  uploadSingle(e.target.files[0], setCoverImage)
+                }
+                className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:bg-slate-800 file:text-amber-400 cursor-pointer w-full"
               />
+              {coverImage && (
+                <img
+                  src={coverImage}
+                  alt="Cover preview"
+                  className="h-24 w-full rounded-xl object-cover"
+                />
+              )}
             </div>
 
             {/* Additional Gallery Photos */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Gallery Photos (URLs, separated by newline or comma)
+                Gallery Photos (upload one or more)
               </label>
-              <textarea
-                rows={4}
-                value={imagesInput}
-                onChange={(e) => setImagesInput(e.target.value)}
-                placeholder={`https://images.unsplash.com/photo-1...\nhttps://images.unsplash.com/photo-2...`}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500 transition-all font-mono leading-relaxed resize-none"
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => handleNewPhotos(e.target.files)}
+                className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:bg-slate-800 file:text-amber-400 cursor-pointer w-full"
               />
               <p className="text-[11px] text-slate-500">
-                Paste links to all event photos. You can also add or remove individual photos anytime later.
+                {galleryImages.length} gallery photo(s) uploaded
+                {isUploading ? ' — uploading…' : ''}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Upload photos one by one or select multiple files. You can add
+                or remove individual photos later.
               </p>
             </div>
 
@@ -202,11 +266,13 @@ export default function AdminGalleryView() {
               <Layers className="w-4 h-4 text-amber-500" />
               Event Photo Albums ({galleries.length})
             </h3>
-            <span className="text-xs text-slate-400">Click cover or edit to manage images</span>
+            <span className="text-xs text-slate-400">
+              Click cover or edit to manage images
+            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {galleries.map((album) => (
+            {galleries.map((album: GalleryItem) => (
               <div
                 key={album._id}
                 className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden group hover:border-slate-700 transition-all flex flex-col justify-between"
@@ -214,8 +280,8 @@ export default function AdminGalleryView() {
                 {/* Cover Image */}
                 <div
                   onClick={() => {
-                    setSelectedGallery(album);
-                    setIsEditingAlbum(false);
+                    setSelectedGallery(album)
+                    setIsEditingAlbum(false)
                   }}
                   className="relative aspect-video bg-slate-950 cursor-pointer overflow-hidden group"
                 >
@@ -224,10 +290,10 @@ export default function AdminGalleryView() {
                     alt={album.eventTitle}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
-                      (e.target as HTMLElement).setAttribute(
+                      ;(e.target as HTMLElement).setAttribute(
                         'src',
-                        'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80'
-                      );
+                        'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
+                      )
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
@@ -248,7 +314,9 @@ export default function AdminGalleryView() {
                     <h4 className="text-sm font-bold text-white truncate max-w-[170px]">
                       {album.eventTitle}
                     </h4>
-                    <p className="text-[11px] text-slate-400">Click to view or edit photos</p>
+                    <p className="text-[11px] text-slate-400">
+                      Click to view or edit photos
+                    </p>
                   </div>
 
                   <div className="flex items-center space-x-1">
@@ -301,8 +369,8 @@ export default function AdminGalleryView() {
 
                 <button
                   onClick={() => {
-                    setSelectedGallery(null);
-                    setIsEditingAlbum(false);
+                    setSelectedGallery(null)
+                    setIsEditingAlbum(false)
                   }}
                   className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
                 >
@@ -316,7 +384,9 @@ export default function AdminGalleryView() {
               <div className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Event Title</label>
+                    <label className="text-xs font-semibold text-slate-300">
+                      Event Title
+                    </label>
                     <input
                       type="text"
                       value={editTitle}
@@ -326,12 +396,17 @@ export default function AdminGalleryView() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Cover Image URL</label>
+                    <label className="text-xs font-semibold text-slate-300">
+                      Cover Image
+                    </label>
                     <input
-                      type="text"
-                      value={editCoverImage}
-                      onChange={(e) => setEditCoverImage(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:outline-none focus:border-amber-500"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        e.target.files?.[0] &&
+                        uploadSingle(e.target.files[0], setEditCoverImage)
+                      }
+                      className="text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-800 file:text-amber-400"
                     />
                   </div>
                 </div>
@@ -339,21 +414,23 @@ export default function AdminGalleryView() {
                 {/* Add New Photos Input */}
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-                    <Upload className="w-3.5 h-3.5 text-amber-500" /> Add New Photo Links (URLs, newline or comma separated)
+                    <Upload className="w-3.5 h-3.5 text-amber-500" /> Add New
+                    Photos
                   </label>
-                  <textarea
-                    rows={3}
-                    value={newPhotosInput}
-                    onChange={(e) => setNewPhotosInput(e.target.value)}
-                    placeholder="https://images.unsplash.com/photo-new..."
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono leading-relaxed focus:outline-none focus:border-amber-500 resize-none"
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleEditPhotos(e.target.files)}
+                    className="text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-800 file:text-amber-400"
                   />
                 </div>
 
                 {/* Manage Existing Photos */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-300 block">
-                    Current Photos ({editImages.length}) - Click trash icon to delete photo from album:
+                    Current Photos ({editImages.length}) - Click trash icon to
+                    delete photo from album:
                   </label>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -367,10 +444,10 @@ export default function AdminGalleryView() {
                           alt={`Photo ${idx + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLElement).setAttribute(
+                            ;(e.target as HTMLElement).setAttribute(
                               'src',
-                              'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80'
-                            );
+                              'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
+                            )
                           }}
                         />
                         <button
@@ -417,10 +494,10 @@ export default function AdminGalleryView() {
                         alt={`Photo ${idx + 1}`}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         onError={(e) => {
-                          (e.target as HTMLElement).setAttribute(
+                          ;(e.target as HTMLElement).setAttribute(
                             'src',
-                            'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80'
-                          );
+                            'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
+                          )
                         }}
                       />
                       <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -451,5 +528,5 @@ export default function AdminGalleryView() {
         </div>
       )}
     </div>
-  );
+  )
 }

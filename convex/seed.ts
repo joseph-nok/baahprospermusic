@@ -145,16 +145,18 @@ export const seedInitialData = mutation({
           role: 'Founder & Lead Minister',
           avatarUrl:
             'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80',
-          description: 'A visionary worship minister shaping a modern gospel sound rooted in testimony and reverence.',
+          description:
+            'A visionary worship minister shaping a modern gospel sound rooted in testimony and reverence.',
         },
         {
           name: 'Eunice Mensah',
           role: 'Creative Director',
           avatarUrl:
             'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80',
-          description: 'She translates ministry into visual atmosphere, from stage treatment to photographic direction.',
+          description:
+            'She translates ministry into visual atmosphere, from stage treatment to photographic direction.',
           ig: 'https://instagram.com/eunicemensah',
-          x: 'https://twitter.com/eunicemensah',
+          youtube: 'https://youtube.com/@eunicemensah',
           tiktok: 'https://tiktok.com/@eunicemensah',
         },
         {
@@ -162,9 +164,10 @@ export const seedInitialData = mutation({
           role: 'Music Producer',
           avatarUrl:
             'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80',
-          description: 'An award-winning producer blending rich choir textures, clean mix engineering, and live dynamics.',
+          description:
+            'An award-winning producer blending rich choir textures, clean mix engineering, and live dynamics.',
           ig: 'https://instagram.com/samboateng',
-          x: 'https://twitter.com/samboateng',
+          youtube: 'https://youtube.com/@samboateng',
           tiktok: 'https://tiktok.com/@samboateng',
         },
       ]
