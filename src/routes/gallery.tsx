@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import { ChevronLeft, ChevronRight, X as XIcon } from 'lucide-react'
 
@@ -28,12 +28,17 @@ export function GalleryPage() {
   })
   const [selectedAlbum, setSelectedAlbum] = useState<GalleryAlbum | null>(null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const touchStartX = useRef<number | null>(null)
   const lightboxImages = selectedAlbum
     ? [selectedAlbum.coverImage, ...selectedAlbum.images]
     : []
 
   useEffect(() => {
     if (lightboxIndex === null) return
+    const previousBodyOverflow = document.body.style.overflow
+    const previousDocumentOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setLightboxIndex(null)
       if (event.key === 'ArrowLeft')
@@ -48,7 +53,11 @@ export function GalleryPage() {
         )
     }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousDocumentOverflow
+    }
   }, [lightboxIndex, lightboxImages.length])
 
   if (isPending || albums === undefined) {
@@ -244,6 +253,26 @@ export function GalleryPage() {
                 src={lightboxImages[lightboxIndex]}
                 alt={`${selectedAlbum.category} image ${lightboxIndex + 1}`}
                 className="max-h-full max-w-full object-contain"
+                onTouchStart={(event) => {
+                  touchStartX.current = event.touches[0]?.clientX ?? null
+                }}
+                onTouchEnd={(event) => {
+                  const start = touchStartX.current
+                  const end = event.changedTouches[0]?.clientX
+                  touchStartX.current = null
+                  if (
+                    start === null ||
+                    end === undefined ||
+                    Math.abs(end - start) < 50
+                  )
+                    return
+                  setLightboxIndex(
+                    (end < start
+                      ? lightboxIndex + 1
+                      : lightboxIndex - 1 + lightboxImages.length) %
+                      lightboxImages.length,
+                  )
+                }}
               />
               <button
                 type="button"

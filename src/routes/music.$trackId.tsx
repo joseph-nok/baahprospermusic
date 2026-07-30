@@ -3,11 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { ArrowLeft, ExternalLink, Music2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/music/$trackId')({
   loader: async ({ context, params }) => {
     await context.queryClient.ensureQueryData(
-      convexQuery(api.music.getTrack, { id: params.trackId as never }),
+      convexQuery(api.music.getTrack, { id: params.trackId as Id<'music'> }),
     )
   },
   component: SongDetailsPage,
@@ -45,7 +46,7 @@ function LyricsContent({ lyrics }: { lyrics: string }) {
 function SongDetailsPage() {
   const { trackId } = Route.useParams()
   const { data: song } = useQuery(
-    convexQuery(api.music.getTrack, { id: trackId as never }),
+    convexQuery(api.music.getTrack, { id: trackId as Id<'music'> }),
   )
 
   if (song === undefined) {
