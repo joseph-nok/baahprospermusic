@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
+import { ChevronDown, Music2 } from 'lucide-react'
+import { useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import { socialUrl } from '../lib/admin-drafts'
 
@@ -13,8 +15,49 @@ export const Route = createFileRoute('/music')({
   component: MusicPage,
 })
 
+function LyricsContent({ lyrics }: { lyrics: string }) {
+  if (!lyrics || !lyrics.trim()) {
+    return (
+      <p className="text-(--color-copy-muted)">
+        No lyrics available for this song.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-2 text-sm leading-7 text-(--color-copy-soft)">
+      {lyrics.split(/\r?\n/).map((line, index) => {
+        const trimmed = line.trim()
+        if (!trimmed) return <div key={index} className="h-2" />
+
+        const heading = trimmed.match(/^\[([^\]]+)\]$/)
+        if (heading) {
+          return (
+            <h4
+              key={index}
+              className="pt-4 text-[0.65rem] font-bold uppercase tracking-[0.24em] text-(--color-primary)"
+            >
+              {heading[1]}
+            </h4>
+          )
+        }
+
+        return (
+          <p key={index} className="m-0">
+            {trimmed
+              .replace(/\*\*(.*?)\*\*/g, '$1')
+              .replace(/\*(.*?)\*/g, '$1')}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
 function MusicPage() {
   const { data: releases } = useQuery(convexQuery(api.music.listTracks, {}))
+  const [expandedLyricsId, setExpandedLyricsId] = useState<string | null>(null)
+
   if (releases === undefined) {
     return (
       <main className="px-4 pb-20 pt-14">
@@ -68,6 +111,9 @@ function MusicPage() {
         <div className="mt-12 grid gap-8 lg:grid-cols-3">
           {musicCards.map((card: any) => {
             const formattedYoutubeUrl = socialUrl(card.youtubeUrl, 'youtube')
+            const isLyricsExpanded = expandedLyricsId === card._id
+            const lyricsPanelId = `lyrics-${card._id}`
+
             return (
               <article
                 key={card._id ?? card.title}
@@ -113,14 +159,44 @@ function MusicPage() {
                         Watch On YouTube
                       </a>
                     )}
-                    <Link
-                      to="/music/$trackId"
-                      params={{ trackId: card._id }}
-                      className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-copy-soft) hover:text-white"
+                    <button
+                      type="button"
+                      aria-expanded={isLyricsExpanded}
+                      aria-controls={lyricsPanelId}
+                      onClick={() =>
+                        setExpandedLyricsId(isLyricsExpanded ? null : card._id)
+                      }
+                      className="inline-flex items-center gap-2 border-0 bg-transparent p-0 text-xs font-bold uppercase tracking-[0.22em] text-(--color-copy-soft) transition-colors hover:text-white"
                     >
-                      Show Full Lyrics
-                    </Link>
+                      {isLyricsExpanded ? 'Hide Lyrics' : 'View Lyrics'}
+                      <ChevronDown
+                        size={15}
+                        aria-hidden="true"
+                        className={`transition-transform duration-200 ${
+                          isLyricsExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
                   </div>
+
+                  {isLyricsExpanded && (
+                    <section
+                      id={lyricsPanelId}
+                      aria-label={`${card.title} lyrics`}
+                      className="mt-6 border-t border-white/10 pt-5"
+                    >
+                      <div className="mb-4 flex items-center gap-2 text-(--color-primary)">
+                        <Music2 size={16} aria-hidden="true" />
+                        <p className="eyebrow">Full Lyrics</p>
+                      </div>
+                      <LyricsContent
+                        lyrics={
+                          card.lyrics ||
+                          'Lyrics have not been added for this song yet.'
+                        }
+                      />
+                    </section>
+                  )}
                 </div>
               </article>
             )
