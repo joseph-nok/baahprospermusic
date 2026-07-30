@@ -65,45 +65,55 @@ function SongDetailsPage() {
   return (
     <main className="px-4 pb-24 pt-12">
       <article className="page-wrap">
-        <Link
-          to="/music"
-          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-(--color-copy-soft) hover:text-white"
-        >
-          <ArrowLeft size={16} /> Back to Music
-        </Link>
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+          <div>
+            <p className="eyebrow">Spiritual Discography</p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-white sm:text-5xl">
+              The sacred sounds
+            </h2>
+          </div>
+          <Link
+            to="/music"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-(--color-copy-soft) hover:border-(--color-primary) hover:text-white"
+          >
+            <ArrowLeft size={16} /> Back to Music
+          </Link>
+        </div>
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-          <div className="lg:sticky lg:top-24">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 p-3">
+        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)] lg:items-start">
+          <div className="editorial-card overflow-hidden lg:sticky lg:top-24">
+            <div className="bg-zinc-950 p-3">
               <img
                 src={song.thumbnail}
                 alt={song.title}
-                className="max-h-[620px] w-full rounded-2xl object-contain"
+                className="aspect-square max-h-[620px] w-full rounded-2xl object-contain"
               />
             </div>
-            <p className="eyebrow mt-6">{song.category || 'Release'}</p>
-            <h1 className="mt-2 font-display text-5xl font-bold tracking-[-0.04em] text-white sm:text-7xl">
-              {song.title}
-            </h1>
-            {song.audioUrl && (
-              <audio
-                controls
-                src={song.audioUrl}
-                className="mt-8 w-full"
-                aria-label={`${song.title} audio`}
-              />
-            )}
-            <a
-              href={song.youtubeUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-(--color-primary) hover:underline"
-            >
-              Listen on YouTube <ExternalLink size={15} />
-            </a>
+            <div className="p-6">
+              <p className="eyebrow">{song.category || 'Release'}</p>
+              <h1 className="mt-2 font-display text-4xl font-bold tracking-[-0.04em] text-white sm:text-5xl">
+                {song.title}
+              </h1>
+              {song.audioUrl && (
+                <audio
+                  controls
+                  src={song.audioUrl}
+                  className="mt-6 w-full"
+                  aria-label={`${song.title} audio`}
+                />
+              )}
+              <a
+                href={song.youtubeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-(--color-primary) hover:underline"
+              >
+                Listen on YouTube <ExternalLink size={15} />
+              </a>
+            </div>
           </div>
 
-          <section className="editorial-card p-6 sm:p-10">
+          <section className="editorial-card min-h-[620px] p-6 sm:p-10">
             <div className="flex items-center gap-3 border-b border-white/10 pb-5">
               <Music2 className="text-(--color-primary)" />
               <div>
@@ -114,7 +124,11 @@ function SongDetailsPage() {
               </div>
             </div>
             <div className="mt-6">
-              <LyricsContent lyrics={song.lyrics} />
+              <LyricsContent
+                lyrics={
+                  song.lyrics || 'Lyrics have not been added for this song yet.'
+                }
+              />
             </div>
           </section>
         </div>

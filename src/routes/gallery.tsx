@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { useEffect, useState } from 'react'
@@ -209,6 +209,16 @@ export function GalleryPage() {
               aria-modal="true"
               aria-label="Full screen gallery image"
             >
+              <Link
+                to="/gallery"
+                onClick={() => {
+                  setLightboxIndex(null)
+                  setSelectedAlbum(null)
+                }}
+                className="absolute left-5 top-5 z-10 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white hover:bg-white/20"
+              >
+                <ChevronLeft size={16} /> Back to Gallery
+              </Link>
               <button
                 type="button"
                 onClick={() => setLightboxIndex(null)}
