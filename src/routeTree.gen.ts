@@ -20,6 +20,7 @@ import { Route as MarketRouteImport } from './routes/market'
 import { Route as MomoPaymentRouteImport } from './routes/momo-payment'
 import { Route as MusicRouteImport } from './routes/music'
 import { Route as PaymentCallbackRouteImport } from './routes/payment-callback'
+import { Route as MusicTrackIdRouteImport } from './routes/music.$trackId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const PaymentCallbackRoute = PaymentCallbackRouteImport.update({
   path: '/payment-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MusicTrackIdRoute = MusicTrackIdRouteImport.update({
+  id: '/$trackId',
+  path: '/$trackId',
+  getParentRoute: () => MusicRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,8 +93,9 @@ export interface FileRoutesByFullPath {
   '/invite-us': typeof InviteUsRoute
   '/market': typeof MarketRoute
   '/momo-payment': typeof MomoPaymentRoute
-  '/music': typeof MusicRoute
+  '/music': typeof MusicRouteWithChildren
   '/payment-callback': typeof PaymentCallbackRoute
+  '/music/$trackId': typeof MusicTrackIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -100,8 +107,9 @@ export interface FileRoutesByTo {
   '/invite-us': typeof InviteUsRoute
   '/market': typeof MarketRoute
   '/momo-payment': typeof MomoPaymentRoute
-  '/music': typeof MusicRoute
+  '/music': typeof MusicRouteWithChildren
   '/payment-callback': typeof PaymentCallbackRoute
+  '/music/$trackId': typeof MusicTrackIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -114,8 +122,9 @@ export interface FileRoutesById {
   '/invite-us': typeof InviteUsRoute
   '/market': typeof MarketRoute
   '/momo-payment': typeof MomoPaymentRoute
-  '/music': typeof MusicRoute
+  '/music': typeof MusicRouteWithChildren
   '/payment-callback': typeof PaymentCallbackRoute
+  '/music/$trackId': typeof MusicTrackIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/momo-payment'
     | '/music'
     | '/payment-callback'
+    | '/music/$trackId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/momo-payment'
     | '/music'
     | '/payment-callback'
+    | '/music/$trackId'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/momo-payment'
     | '/music'
     | '/payment-callback'
+    | '/music/$trackId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -169,7 +181,7 @@ export interface RootRouteChildren {
   InviteUsRoute: typeof InviteUsRoute
   MarketRoute: typeof MarketRoute
   MomoPaymentRoute: typeof MomoPaymentRoute
-  MusicRoute: typeof MusicRoute
+  MusicRoute: typeof MusicRouteWithChildren
   PaymentCallbackRoute: typeof PaymentCallbackRoute
 }
 
@@ -252,8 +264,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaymentCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/music/$trackId': {
+      id: '/music/$trackId'
+      path: '/$trackId'
+      fullPath: '/music/$trackId'
+      preLoaderRoute: typeof MusicTrackIdRouteImport
+      parentRoute: typeof MusicRoute
+    }
   }
 }
+
+interface MusicRouteChildren {
+  MusicTrackIdRoute: typeof MusicTrackIdRoute
+}
+
+const MusicRouteChildren: MusicRouteChildren = {
+  MusicTrackIdRoute: MusicTrackIdRoute,
+}
+
+const MusicRouteWithChildren = MusicRoute._addFileChildren(MusicRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -265,7 +294,7 @@ const rootRouteChildren: RootRouteChildren = {
   InviteUsRoute: InviteUsRoute,
   MarketRoute: MarketRoute,
   MomoPaymentRoute: MomoPaymentRoute,
-  MusicRoute: MusicRoute,
+  MusicRoute: MusicRouteWithChildren,
   PaymentCallbackRoute: PaymentCallbackRoute,
 }
 export const routeTree = rootRouteImport

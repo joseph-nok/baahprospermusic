@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../convex/_generated/api'
-import { X as XIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X as XIcon } from 'lucide-react'
 
 export const Route = createFileRoute('/gallery')({
   loader: async ({ context }) => {
@@ -27,6 +27,29 @@ export function GalleryPage() {
     ...convexQuery(api.gallery.getAlbums, {}),
   })
   const [selectedAlbum, setSelectedAlbum] = useState<GalleryAlbum | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const lightboxImages = selectedAlbum
+    ? [selectedAlbum.coverImage, ...selectedAlbum.images]
+    : []
+
+  useEffect(() => {
+    if (lightboxIndex === null) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setLightboxIndex(null)
+      if (event.key === 'ArrowLeft')
+        setLightboxIndex((current) =>
+          current === null
+            ? null
+            : (current - 1 + lightboxImages.length) % lightboxImages.length,
+        )
+      if (event.key === 'ArrowRight')
+        setLightboxIndex((current) =>
+          current === null ? null : (current + 1) % lightboxImages.length,
+        )
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [lightboxIndex, lightboxImages.length])
 
   if (isPending || albums === undefined) {
     return (
@@ -86,7 +109,7 @@ export function GalleryPage() {
               <img
                 src={album.coverImage}
                 alt={album.category}
-                className="gallery-image transition-transform duration-700 group-hover:scale-105"
+                className="gallery-image object-contain bg-zinc-950 transition-transform duration-700 group-hover:scale-105"
               />
               <div className="gallery-overlay">
                 <p className="eyebrow mb-2">{album.dateAdded}</p>
@@ -141,24 +164,34 @@ export function GalleryPage() {
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div className="overflow-hidden rounded-2xl border border-white/5 bg-zinc-900 aspect-video group">
-                <img
-                  src={selectedAlbum.coverImage}
-                  alt={selectedAlbum.category}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+                <button
+                  type="button"
+                  className="h-full w-full bg-zinc-900"
+                  onClick={() => setLightboxIndex(0)}
+                  aria-label="View cover image full screen"
+                >
+                  <img
+                    src={selectedAlbum.coverImage}
+                    alt={selectedAlbum.category}
+                    className="h-full w-full object-contain transition-transform duration-700 group-hover:scale-105"
+                  />
+                </button>
               </div>
 
               {selectedAlbum.images.map((imgUrl, idx) => (
-                <div
+                <button
+                  type="button"
                   key={idx}
+                  onClick={() => setLightboxIndex(idx + 1)}
+                  aria-label={`View ${selectedAlbum.category} image ${idx + 1} full screen`}
                   className="overflow-hidden rounded-2xl border border-white/5 bg-zinc-900 aspect-video group"
                 >
                   <img
                     src={imgUrl}
                     alt={`${selectedAlbum.category} - ${idx + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
                   />
-                </div>
+                </button>
               ))}
             </div>
 
@@ -168,6 +201,56 @@ export function GalleryPage() {
               </p>
             ) : null}
           </div>
+
+          {lightboxIndex !== null && lightboxImages[lightboxIndex] && (
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4 sm:p-10"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Full screen gallery image"
+            >
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(null)}
+                className="absolute right-5 top-5 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+                aria-label="Close full screen image"
+              >
+                <XIcon size={24} />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setLightboxIndex(
+                    (lightboxIndex - 1 + lightboxImages.length) %
+                      lightboxImages.length,
+                  )
+                }
+                className="absolute left-3 top-1/2 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 sm:left-8"
+                aria-label="Previous image"
+              >
+                <ChevronLeft size={28} />
+              </button>
+              <img
+                src={lightboxImages[lightboxIndex]}
+                alt={`${selectedAlbum.category} image ${lightboxIndex + 1}`}
+                className="max-h-full max-w-full object-contain"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setLightboxIndex((lightboxIndex + 1) % lightboxImages.length)
+                }
+                className="absolute right-3 top-1/2 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 sm:right-8"
+                aria-label="Next image"
+              >
+                <ChevronRight size={28} />
+              </button>
+              <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/70">
+                {lightboxIndex + 1} / {lightboxImages.length} · Use ← → to
+                navigate
+              </p>
+            </div>
+          )}
         </div>
       ) : null}
     </main>

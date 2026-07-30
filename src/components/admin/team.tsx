@@ -117,9 +117,10 @@ export default function AdminTeamView() {
       ['Instagram', ig],
     ] as const
     for (const [label, value] of handleFields) {
-      if (value.trim() && !/^@[A-Za-z0-9._-]+$/.test(value.trim())) {
+      const normalized = normalizeHandle(value)
+      if (normalized && !/^@[A-Za-z0-9._-]+$/.test(normalized)) {
         alert(
-          `${label} must be entered as a handle like @username, not as a URL.`,
+          `${label} must be a handle such as @username or a valid profile URL.`,
         )
         return
       }

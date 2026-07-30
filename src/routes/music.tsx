@@ -1,7 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
-import { useState } from 'react'
 import { api } from '../../convex/_generated/api'
 
 export const Route = createFileRoute('/music')({
@@ -15,12 +14,6 @@ export const Route = createFileRoute('/music')({
 
 function MusicPage() {
   const { data: releases } = useQuery(convexQuery(api.music.listTracks, {}))
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
-
   if (releases === undefined) {
     return (
       <main className="px-4 pb-20 pt-14">
@@ -77,16 +70,17 @@ function MusicPage() {
               key={card._id ?? card.title}
               className="editorial-card overflow-hidden"
             >
-              <div
-                className="cursor-pointer overflow-hidden group"
-                onClick={() => toggleExpand(card.title)}
+              <Link
+                to="/music/$trackId"
+                params={{ trackId: card._id }}
+                className="block overflow-hidden group bg-zinc-950"
               >
                 <img
                   src={card.thumbnail}
                   alt={card.title}
-                  className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="aspect-video w-full object-contain transition-transform duration-500 group-hover:scale-105"
                 />
-              </div>
+              </Link>
               <div className="p-6">
                 <h3 className="font-display text-2xl font-bold text-(--color-primary)">
                   {card.title}
@@ -94,44 +88,6 @@ function MusicPage() {
                 <p className="mt-1 text-xs uppercase tracking-[0.24em] text-(--color-copy-soft)">
                   {card.category}
                 </p>
-
-                <div
-                  className={`overflow-hidden transition-all duration-500 ${expandedIds[card.title] ? 'mt-5 max-h-75 opacity-100' : 'max-h-0 opacity-0'}`}
-                >
-                  <div className="lyrics-reader text-sm leading-7 text-(--color-copy-soft)">
-                    {card.lyrics
-                      .split(/\r?\n/)
-                      .map((line: string, index: number) => {
-                        const trimmed = line.trim()
-                        if (!trimmed) return <div key={index} className="h-3" />
-                        const heading = trimmed.match(/^\[([^\]]+)\]$/)
-                        if (heading)
-                          return (
-                            <h4
-                              key={index}
-                              className="mt-4 mb-1 text-xs font-bold uppercase tracking-[0.2em] text-(--color-primary)"
-                            >
-                              {heading[1]}
-                            </h4>
-                          )
-                        const rendered = trimmed
-                          .replace(/\*\*(.*?)\*\*/g, '$1')
-                          .replace(/\*(.*?)\*/g, '$1')
-                        return (
-                          <p
-                            key={index}
-                            className={
-                              trimmed.startsWith('>')
-                                ? 'border-l-2 border-(--color-primary) pl-3 italic'
-                                : ''
-                            }
-                          >
-                            {rendered}
-                          </p>
-                        )
-                      })}
-                  </div>
-                </div>
 
                 <div className="mt-6 flex flex-wrap items-center gap-6">
                   {card.audioUrl && (
@@ -150,12 +106,13 @@ function MusicPage() {
                   >
                     Watch On YouTube
                   </a>
-                  <button
-                    onClick={() => toggleExpand(card.title)}
+                  <Link
+                    to="/music/$trackId"
+                    params={{ trackId: card._id }}
                     className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-copy-soft) hover:text-white"
                   >
-                    {expandedIds[card.title] ? 'Hide Lyrics' : 'View Lyrics'}
-                  </button>
+                    Show Full Lyrics
+                  </Link>
                 </div>
               </div>
             </article>

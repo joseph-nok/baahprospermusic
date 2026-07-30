@@ -42,6 +42,7 @@ export function normalizeHandle(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return ''
   if (trimmed.startsWith('@')) return trimmed
+  if (/^[A-Za-z0-9._-]+$/.test(trimmed)) return `@${trimmed}`
   try {
     const pathname = new URL(trimmed).pathname.split('/').filter(Boolean).pop()
     return pathname ? `@${pathname.replace(/^@/, '')}` : trimmed

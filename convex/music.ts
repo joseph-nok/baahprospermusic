@@ -28,3 +28,10 @@ export const listTracks = query({
     return await ctx.db.query('music').order('desc').take(100)
   },
 })
+
+export const getTrack = query({
+  args: { id: v.id('music') },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id)
+  },
+})
