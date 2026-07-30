@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { socialUrl } from '../lib/admin-drafts'
 import {
   MessageCircle,
   CirclePlay,
@@ -23,6 +24,19 @@ const footerLinks = [
 export default function Footer() {
   const year = new Date().getFullYear()
   const footerData = useQuery(api.setfooter.getSetFooter)
+
+  const whatsappHref = footerData?.whatsapp
+    ? socialUrl(footerData.whatsapp, 'whatsapp')
+    : '#'
+  const youtubeHref = footerData?.youtube
+    ? socialUrl(footerData.youtube, 'youtube')
+    : 'https://www.youtube.com/@Prosper_Baah'
+  const instagramHref = footerData?.instagram
+    ? socialUrl(footerData.instagram, 'instagram')
+    : '#'
+  const tiktokHref = footerData?.tiktok
+    ? socialUrl(footerData.tiktok, 'tiktok')
+    : '#'
 
   return (
     <footer className="site-footer px-4 pb-10 pt-14">
@@ -74,7 +88,7 @@ export default function Footer() {
           <div className="site-footer__socials">
             {(!footerData || footerData.whatsapp) && (
               <a
-                href={footerData?.whatsapp || '#'}
+                href={whatsappHref}
                 className="site-footer__social"
                 aria-label="WhatsApp"
                 target="_blank"
@@ -85,9 +99,7 @@ export default function Footer() {
             )}
             {(!footerData || footerData.youtube) && (
               <a
-                href={
-                  footerData?.youtube || 'https://www.youtube.com/@Prosper_Baah'
-                }
+                href={youtubeHref}
                 className="site-footer__social"
                 aria-label="YouTube"
                 target="_blank"
@@ -98,7 +110,7 @@ export default function Footer() {
             )}
             {(!footerData || footerData.instagram) && (
               <a
-                href={footerData?.instagram || '#'}
+                href={instagramHref}
                 className="site-footer__social"
                 aria-label="Instagram"
                 target="_blank"
@@ -109,7 +121,7 @@ export default function Footer() {
             )}
             {(!footerData || footerData.tiktok) && (
               <a
-                href={footerData?.tiktok || '#'}
+                href={tiktokHref}
                 className="site-footer__social"
                 aria-label="TikTok"
                 target="_blank"

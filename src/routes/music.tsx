@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../convex/_generated/api'
+import { socialUrl } from '../lib/admin-drafts'
 
 export const Route = createFileRoute('/music')({
   loader: async ({ context }) => {
@@ -65,58 +66,65 @@ function MusicPage() {
         </div>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-3">
-          {musicCards.map((card: any) => (
-            <article
-              key={card._id ?? card.title}
-              className="editorial-card overflow-hidden"
-            >
-              <Link
-                to="/music/$trackId"
-                params={{ trackId: card._id }}
-                className="block overflow-hidden group bg-zinc-950"
+          {musicCards.map((card: any) => {
+            const formattedYoutubeUrl = socialUrl(card.youtubeUrl, 'youtube')
+            return (
+              <article
+                key={card._id ?? card.title}
+                className="editorial-card overflow-hidden"
               >
-                <img
-                  src={card.thumbnail}
-                  alt={card.title}
-                  className="aspect-video w-full object-contain transition-transform duration-500 group-hover:scale-105"
-                />
-              </Link>
-              <div className="p-6">
-                <h3 className="font-display text-2xl font-bold text-(--color-primary)">
-                  {card.title}
-                </h3>
-                <p className="mt-1 text-xs uppercase tracking-[0.24em] text-(--color-copy-soft)">
-                  {card.category}
-                </p>
-
-                <div className="mt-6 flex flex-wrap items-center gap-6">
-                  {card.audioUrl && (
-                    <audio
-                      controls
-                      src={card.audioUrl}
-                      className="w-full"
-                      aria-label={`${card.title} audio`}
+                <Link
+                  to="/music/$trackId"
+                  params={{ trackId: card._id }}
+                  className="block overflow-hidden group bg-zinc-950 p-2 border-b border-white/5"
+                >
+                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 flex items-center justify-center">
+                    <img
+                      src={card.thumbnail}
+                      alt={card.title}
+                      className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
                     />
-                  )}
-                  <a
-                    href={card.youtubeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-primary) no-underline hover:underline"
-                  >
-                    Watch On YouTube
-                  </a>
-                  <Link
-                    to="/music/$trackId"
-                    params={{ trackId: card._id }}
-                    className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-copy-soft) hover:text-white"
-                  >
-                    Show Full Lyrics
-                  </Link>
+                  </div>
+                </Link>
+                <div className="p-6">
+                  <h3 className="font-display text-2xl font-bold text-(--color-primary)">
+                    {card.title}
+                  </h3>
+                  <p className="mt-1 text-xs uppercase tracking-[0.24em] text-(--color-copy-soft)">
+                    {card.category}
+                  </p>
+
+                  <div className="mt-6 flex flex-wrap items-center gap-6">
+                    {card.audioUrl && (
+                      <audio
+                        controls
+                        src={card.audioUrl}
+                        className="w-full"
+                        aria-label={`${card.title} audio`}
+                      />
+                    )}
+                    {card.youtubeUrl && (
+                      <a
+                        href={formattedYoutubeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-primary) no-underline hover:underline"
+                      >
+                        Watch On YouTube
+                      </a>
+                    )}
+                    <Link
+                      to="/music/$trackId"
+                      params={{ trackId: card._id }}
+                      className="text-xs font-bold uppercase tracking-[0.22em] text-(--color-copy-soft) hover:text-white"
+                    >
+                      Show Full Lyrics
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            )
+          })}
         </div>
       </section>
     </main>

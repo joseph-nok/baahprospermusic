@@ -4,6 +4,7 @@ import { convexQuery } from '@convex-dev/react-query'
 import { ArrowLeft, ExternalLink, Music2 } from 'lucide-react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
+import { socialUrl } from '../lib/admin-drafts'
 
 export const Route = createFileRoute('/music/$trackId')({
   loader: async ({ context, params }) => {
@@ -15,8 +16,11 @@ export const Route = createFileRoute('/music/$trackId')({
 })
 
 function LyricsContent({ lyrics }: { lyrics: string }) {
+  if (!lyrics || !lyrics.trim()) {
+    return <p className="text-(--color-copy-muted)">No lyrics available for this song.</p>
+  }
   return (
-    <div className="space-y-1 text-base leading-8 text-(--color-copy-soft) sm:text-lg sm:leading-9">
+    <div className="space-y-2 text-base leading-8 text-(--color-copy-soft) sm:text-lg sm:leading-9">
       {lyrics.split(/\r?\n/).map((line, index) => {
         const trimmed = line.trim()
         if (!trimmed) return <div key={index} className="h-4" />
@@ -32,7 +36,7 @@ function LyricsContent({ lyrics }: { lyrics: string }) {
           )
         }
         return (
-          <p key={index}>
+          <p key={index} className="m-0">
             {trimmed
               .replace(/\*\*(.*?)\*\*/g, '$1')
               .replace(/\*(.*?)\*/g, '$1')}
@@ -63,9 +67,20 @@ function SongDetailsPage() {
     )
   }
 
+  const formattedYoutubeUrl = socialUrl(song.youtubeUrl, 'youtube')
+
   return (
     <main className="px-4 pb-24 pt-12">
       <article className="page-wrap">
+        <div className="flex justify-end mb-4">
+          <Link
+            to="/music"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white hover:border-(--color-primary) hover:bg-white/10 transition-colors"
+          >
+            <ArrowLeft size={16} /> Back to Music
+          </Link>
+        </div>
+
         <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
             <p className="eyebrow">Spiritual Discography</p>
@@ -73,21 +88,15 @@ function SongDetailsPage() {
               The sacred sounds
             </h2>
           </div>
-          <Link
-            to="/music"
-            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-(--color-copy-soft) hover:border-(--color-primary) hover:text-white"
-          >
-            <ArrowLeft size={16} /> Back to Music
-          </Link>
         </div>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)] lg:items-start">
           <div className="editorial-card overflow-hidden lg:sticky lg:top-24">
-            <div className="bg-zinc-950 p-3">
+            <div className="bg-zinc-950 p-4 flex items-center justify-center rounded-2xl overflow-hidden min-h-[300px]">
               <img
                 src={song.thumbnail}
                 alt={song.title}
-                className="aspect-square max-h-[620px] w-full rounded-2xl object-contain"
+                className="max-h-[500px] w-full rounded-2xl object-contain"
               />
             </div>
             <div className="p-6">
@@ -103,14 +112,16 @@ function SongDetailsPage() {
                   aria-label={`${song.title} audio`}
                 />
               )}
-              <a
-                href={song.youtubeUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-(--color-primary) hover:underline"
-              >
-                Listen on YouTube <ExternalLink size={15} />
-              </a>
+              {song.youtubeUrl && (
+                <a
+                  href={formattedYoutubeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-(--color-primary) hover:underline"
+                >
+                  Listen on YouTube <ExternalLink size={15} />
+                </a>
+              )}
             </div>
           </div>
 
@@ -120,7 +131,7 @@ function SongDetailsPage() {
               <div>
                 <p className="eyebrow">Full Lyrics</p>
                 <p className="mt-1 text-xs text-(--color-copy-muted)">
-                  Read the complete song without truncation.
+                  Read the complete song lyrics without truncation.
                 </p>
               </div>
             </div>

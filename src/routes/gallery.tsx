@@ -34,20 +34,23 @@ export function GalleryPage() {
     : []
 
   useEffect(() => {
-    if (lightboxIndex === null) return
+    if (selectedAlbum === null && lightboxIndex === null) return
     const previousBodyOverflow = document.body.style.overflow
     const previousDocumentOverflow = document.documentElement.style.overflow
     document.body.style.overflow = 'hidden'
     document.documentElement.style.overflow = 'hidden'
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setLightboxIndex(null)
-      if (event.key === 'ArrowLeft')
+      if (event.key === 'Escape') {
+        if (lightboxIndex !== null) setLightboxIndex(null)
+        else setSelectedAlbum(null)
+      }
+      if (event.key === 'ArrowLeft' && lightboxIndex !== null)
         setLightboxIndex((current) =>
           current === null
             ? null
             : (current - 1 + lightboxImages.length) % lightboxImages.length,
         )
-      if (event.key === 'ArrowRight')
+      if (event.key === 'ArrowRight' && lightboxIndex !== null)
         setLightboxIndex((current) =>
           current === null ? null : (current + 1) % lightboxImages.length,
         )
@@ -58,7 +61,7 @@ export function GalleryPage() {
       document.body.style.overflow = previousBodyOverflow
       document.documentElement.style.overflow = previousDocumentOverflow
     }
-  }, [lightboxIndex, lightboxImages.length])
+  }, [selectedAlbum, lightboxIndex, lightboxImages.length])
 
   if (isPending || albums === undefined) {
     return (
@@ -107,7 +110,7 @@ export function GalleryPage() {
               key={album._id}
               data-testid={`gallery-album-${album._id}`}
               onClick={() => setSelectedAlbum(album)}
-              className={`gallery-tile cursor-pointer group ${
+              className={`gallery-tile cursor-pointer group bg-zinc-950 rounded-3xl overflow-hidden border border-white/10 p-2 ${
                 index % 4 === 0
                   ? 'md:col-span-8 h-[320px] md:h-[560px]'
                   : index % 4 === 1
@@ -115,19 +118,21 @@ export function GalleryPage() {
                     : 'md:col-span-6 h-[320px] md:h-[360px]'
               }`}
             >
-              <img
-                src={album.coverImage}
-                alt={album.category}
-                className="gallery-image object-contain bg-zinc-950 transition-transform duration-700 group-hover:scale-105"
-              />
-              <div className="gallery-overlay">
-                <p className="eyebrow mb-2">{album.dateAdded}</p>
-                <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">
-                  {album.category}
-                </h2>
-                <span className="mt-4 inline-flex text-xs font-bold uppercase tracking-widest text-(--color-primary) opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                  View Category
-                </span>
+              <div className="relative w-full h-full rounded-2xl overflow-hidden bg-zinc-950 flex items-center justify-center">
+                <img
+                  src={album.coverImage}
+                  alt={album.category}
+                  className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="gallery-overlay">
+                  <p className="eyebrow mb-2">{album.dateAdded}</p>
+                  <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">
+                    {album.category}
+                  </h2>
+                  <span className="mt-4 inline-flex text-xs font-bold uppercase tracking-widest text-(--color-primary) opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    View Category
+                  </span>
+                </div>
               </div>
             </article>
           ))}
@@ -135,7 +140,7 @@ export function GalleryPage() {
 
         {albums.length === 0 && (
           <div className="text-center py-40">
-            <p className="text-(--color-copy-muted) text-lg italic">
+            <p className="text-(--color-copy-soft) text-lg italic">
               The gallery is currently being curated. Check back soon for new
               moments.
             </p>
@@ -154,28 +159,28 @@ export function GalleryPage() {
           />
 
           <div className="relative z-10 w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950 p-6 sm:p-12 shadow-2xl custom-scrollbar">
-            <button
-              type="button"
-              onClick={() => setSelectedAlbum(null)}
-              className="touch-target-48 absolute right-6 top-6 text-white/50 hover:text-white transition-colors"
-              aria-label="Close album"
-            >
-              <XIcon size={32} />
-            </button>
-
-            <div className="mb-12">
-              <p className="eyebrow mb-3">{selectedAlbum.dateAdded}</p>
-              <h2 className="font-display text-4xl font-bold text-white mb-4">
-                {selectedAlbum.category}
-              </h2>
-              <div className="h-1 w-20 bg-(--color-primary) rounded-full" />
+            <div className="flex items-center justify-between gap-4 mb-8 pb-6 border-b border-white/10">
+              <div>
+                <p className="eyebrow mb-1">{selectedAlbum.dateAdded}</p>
+                <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
+                  {selectedAlbum.category}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAlbum(null)}
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-white hover:bg-white/15 transition-colors"
+                aria-label="Close album"
+              >
+                <ChevronLeft size={16} /> Back to Gallery
+              </button>
             </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div className="overflow-hidden rounded-2xl border border-white/5 bg-zinc-900 aspect-video group">
                 <button
                   type="button"
-                  className="h-full w-full bg-zinc-900"
+                  className="h-full w-full bg-zinc-900 flex items-center justify-center"
                   onClick={() => setLightboxIndex(0)}
                   aria-label="View cover image full screen"
                 >
@@ -193,7 +198,7 @@ export function GalleryPage() {
                   key={idx}
                   onClick={() => setLightboxIndex(idx + 1)}
                   aria-label={`View ${selectedAlbum.category} image ${idx + 1} full screen`}
-                  className="overflow-hidden rounded-2xl border border-white/5 bg-zinc-900 aspect-video group"
+                  className="overflow-hidden rounded-2xl border border-white/5 bg-zinc-900 aspect-video group flex items-center justify-center"
                 >
                   <img
                     src={imgUrl}
@@ -218,23 +223,16 @@ export function GalleryPage() {
               aria-modal="true"
               aria-label="Full screen gallery image"
             >
-              <Link
-                to="/gallery"
+              <button
+                type="button"
                 onClick={() => {
                   setLightboxIndex(null)
                   setSelectedAlbum(null)
                 }}
-                className="absolute left-5 top-5 z-10 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white hover:bg-white/20"
+                className="absolute right-5 top-5 z-10 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-white hover:bg-white/30 transition-colors shadow-lg"
+                aria-label="Back to Gallery"
               >
                 <ChevronLeft size={16} /> Back to Gallery
-              </Link>
-              <button
-                type="button"
-                onClick={() => setLightboxIndex(null)}
-                className="absolute right-5 top-5 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
-                aria-label="Close full screen image"
-              >
-                <XIcon size={24} />
               </button>
               <button
                 type="button"

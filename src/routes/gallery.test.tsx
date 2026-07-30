@@ -18,6 +18,8 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('lucide-react', () => ({
   X: () => <span data-testid="close-icon" />,
+  ChevronLeft: () => <span data-testid="chevron-left" />,
+  ChevronRight: () => <span data-testid="chevron-right" />,
 }))
 
 describe('GalleryPage', () => {

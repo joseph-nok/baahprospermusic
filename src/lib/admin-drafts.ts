@@ -52,16 +52,44 @@ export function normalizeHandle(value: string) {
 }
 
 export function socialUrl(
-  value: string | undefined,
-  platform: 'tiktok' | 'youtube' | 'instagram',
+  value: string | undefined | null,
+  platform: 'tiktok' | 'youtube' | 'instagram' | 'whatsapp',
 ) {
   if (!value) return ''
-  if (/^https?:\/\//i.test(value)) return value
-  const base =
-    platform === 'youtube'
-      ? 'https://youtube.com/'
-      : platform === 'tiktok'
-        ? 'https://tiktok.com/'
-        : 'https://instagram.com/'
-  return `${base}${value.replace(/^@/, '')}`
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+
+  // Strip leading domain prefix if user entered e.g. instagram.com/handle or www.youtube.com/@handle
+  const cleanInput = trimmed
+    .replace(/^(https?:\/\/)?(www\.)?(instagram\.com|youtube\.com|tiktok\.com)\//i, '')
+    .trim()
+
+  if (platform === 'instagram') {
+    const handle = cleanInput.replace(/^@/, '').replace(/\/+$/, '')
+    return `https://www.instagram.com/${handle}/`
+  }
+
+  if (platform === 'youtube') {
+    if (cleanInput.startsWith('watch?') || cleanInput.startsWith('c/') || cleanInput.startsWith('channel/') || cleanInput.startsWith('user/')) {
+      return `https://www.youtube.com/${cleanInput}`
+    }
+    const handle = cleanInput.startsWith('@') ? cleanInput : `@${cleanInput}`
+    return `https://www.youtube.com/${handle}`
+  }
+
+  if (platform === 'tiktok') {
+    const handle = cleanInput.startsWith('@') ? cleanInput : `@${cleanInput}`
+    return `https://www.tiktok.com/${handle}`
+  }
+
+  if (platform === 'whatsapp') {
+    if (/^\+?\d+$/.test(trimmed.replace(/[\s-]/g, ''))) {
+      return `https://wa.me/${trimmed.replace(/[^\d+]/g, '')}`
+    }
+    return trimmed
+  }
+
+  return trimmed
 }
+
