@@ -40,14 +40,13 @@ async function uploadFile(
 
 const DEFAULT_EVENT: Omit<EventItem, '_id' | '_creationTime'> = {
   title: 'Baah Prosper Live in Accra: Songs of Redemption',
-  dateIso: new Date(
-    Date.now() + 14 * 24 * 60 * 60 * 1000 + 5 * 3600 * 1000,
-  ).toISOString(),
+  // Keep the SSR placeholder deterministic so the admin page hydrates cleanly.
+  dateIso: '2030-01-01T17:00:00.000Z',
   timeText: '5:00 PM',
   venue: 'Accra International Conference Centre',
   city: 'Accra',
   town: 'Ghana',
-  eventDate: Date.now() + 14 * 24 * 60 * 60 * 1000 + 5 * 3600 * 1000,
+  eventDate: Date.parse('2030-01-01T17:00:00.000Z'),
   location: 'Accra International Conference Centre, Accra, Ghana',
   flyerStorageId:
     'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
@@ -76,7 +75,7 @@ export function useAdminEvent() {
   return {
     event: event ?? {
       _id: 'placeholder' as Id<'upcomingEvent'>,
-      _creationTime: Date.now(),
+      _creationTime: Date.parse('2030-01-01T00:00:00.000Z'),
       ...DEFAULT_EVENT,
     },
     updateEvent,
